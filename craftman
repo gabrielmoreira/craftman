@@ -1,11 +1,20 @@
 #!/bin/sh
+set -e
 
 #
 # Craft CMS manager
 # 
-NAME=$(basename $(readlink -f $0))
+SCRIPT_NAME=$(basename $(readlink -f $0))
 ROOT=$(dirname $(readlink -f $0))
-COMPOSE=$ROOT/docker-compose.yml
+DIR=$(readlink -f .)
+REAL_NAME=$(basename $DIR)
+NAME=$(echo "$REAL_NAME" | tr '[:upper:]' '[:lower:]')
+APP_DIR=$DIR/app
+COMPOSE=$DIR/docker-compose.yml
+CACHE=~/.craftman/cache
+CRAFT_ZIP=$CACHE/craft.zip
+FORCE_UPDATE=0
+FORCE_OVERWRITE=0
 
 # Default variables
 ENVIRONMENT="dev"
@@ -16,7 +25,7 @@ function usage()
 {
   echo "Craft CMS manager"
   echo ""
-  echo "$NAME [options] (install|start) [arguments]"
+  echo "$SCRIPT_NAME [options] (install|start) [arguments]"
   echo '  -h --help'
   echo ""
 }
@@ -26,20 +35,33 @@ function log()
     echo "===> $*"
 }
 
+function abort()
+{
+  >&2 echo "[ERROR] $1"
+  exit ${2:1}
+}
+
 function download()
 {
   log "Preparing to download Craft CMS"
-  mkdir -p $ROOT/.cache
-  [ -f $ROOT/.cache/craft.zip ] \
-  && log "+ Using Craft CMS from local cache" \
-  || (log "+ Downloading Craft CMS from https://craftcms.com/latest.zip" \
-    && curl -o $ROOT/.cache/craft.zip -L https://craftcms.com/latest.zip?accept_license=yes)
+  if [ -f $CRAFT_ZIP ] && [ "$FORCE_UPDATE" == "0" ]; then
+    log "+ Using Craft CMS from local cache"
+  else
+    log "+ Downloading Craft CMS from https://craftcms.com/latest.zip"
+    curl -o $CRAFT_ZIP -L https://craftcms.com/latest.zip?accept_license=yes
+  fi
 }
 
 function unpack()
 {
   log "Unpacking Craft CMS"
-  mkdir -p $ROOT/app
+  mkdir -p $APP_DIR
+  if [ "$(ls -A $APP_DIR)" ] && [ "$FORCE_OVERWRITE" == "0" ]; then
+    abort "+ $APP_DIR is not empty"
+  else
+    log "+ Unzipping craft.zip to $APP_DIR"
+    unzip -qo $CRAFT_ZIP -d $APP_DIR
+  fi
 }
 
 function configure()
@@ -50,10 +72,11 @@ function configure()
 
 function create_compose_file()
 {
-  [ -f $COMPOSE ] \
-  && log "+ Using existent $(basename $COMPOSE)" \
-  || (log "+ Creating $(basename $COMPOSE) file" \
-    && cat > $COMPOSE <<- EOF
+  if [ -f $COMPOSE ]; then
+    log "+ Using existent $(basename $COMPOSE)"
+  else
+    log "+ Creating $(basename $COMPOSE) file"
+    cat > $COMPOSE <<- EOF
 craft:
   image: "php:latest"
   links:
@@ -61,7 +84,7 @@ craft:
 mysql:
   image: "mariadb:latest"
 EOF
-)
+  fi
 }
 
 function create()
@@ -85,33 +108,53 @@ function install()
   start
 }
 
-while [ "$1" != "" ]; do
-  PARAM=`echo $1 | awk -F= '{print $1}'`
-  VALUE=`echo $1 | awk -F= '{print $2}'`
-  case $PARAM in
-    -h | --help)
-      usage
-      exit
-      ;;
-# --option)
-#   OPTION=$VALUE
-#   ;;
-    install)
-      ACTION="install"
-      break
-      ;;
-    start)
-      ACTION="start"
-      break
-      ;;
-    *)
-      echo "ERROR: unknown parameter \"$PARAM\""
-      usage
-      exit 1
-      ;;
-  esac
+function parse()
+{
+  while [ "$1" != "" ]; do
+    PARAM=`echo $1 | awk -F= '{print $1}'`
+    VALUE=`echo $1 | awk -F= '{print $2}'`
+    case $PARAM in
+      -h | --help)
+        usage
+        exit
+        ;;
+      -U | --force-update)
+        FORCE_UPDATE=1
+        ;;
+      -F | --force-overwrite)
+        FORCE_OVERWRITE=1
+        ;;
+  # --option)
+  #   OPTION=$VALUE
+  #   ;;
+      install)
+        ACTION="install"
+        break
+        ;;
+      start)
+        ACTION="start"
+        break
+        ;;
+      *)
+        echo "ERROR: unknown parameter \"$PARAM\""
+        usage
+        exit 1
+        ;;
+    esac
+    shift
+  done
   shift
-done
-shift
+}
+
+# Create default directories
+mkdir -p $CACHE
+
+# Load custom variables
+[ -f $DIR/.craftman ] \
+  && (log "Loading $DIR/.craftman" \
+      && . $DIR/.craftman
+    )
+
+parse "$@"
 
 $ACTION "$@"
