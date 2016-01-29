@@ -24,6 +24,31 @@ Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
 
 ## Usage
 
+ Output from `craftman -h`:
+ 
+    Usage: craftman [options] <COMMAND> [args]
+
+    Commands:
+
+      craftman install               Install Craft CMS in current directory
+      craftman open                  Open Craft CMS public site
+      craftman admin                 Open Craft CMS admin dashboard
+      craftman start                 Start Craft CMS docker containers
+      craftman stop                  Stop Craft CMS docker containers
+      craftman status                Check Craft CMS docker containers status
+      craftman craft:run             Open bash or run a command on Craft docker container
+      craftman mysql:run             Open mysql client or run a command on MySQL docker container
+      craftman mysql:backup          Create a backup at ./backups
+      craftman mysql:restore <file>  Restore a backup from <file> (.sql.gz) to MySQL database
+      craftman craftman:upgrade      Upgrade Craftman
+
+    Options:
+      -h, --help
+      -P, --port            HTTP port to expose on host
+      -D, --force-download  Force latest Craft CMS download from site
+      -O, --force-overwrite Regenerate and overwrite configuration files over app/ and scripts/ directories
+      -R, --force-recreate  Force containers recreation
+
 If you want install craft, first create an empty directory and then run it:
 
     craftman --port=8080 install
