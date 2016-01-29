@@ -4,22 +4,24 @@ set -e
 #
 # Craft CMS manager
 # 
-SCRIPT_NAME=$(basename $(readlink -f $0))
-ROOT=$(dirname $(readlink -f $0))
-DIR=$(readlink -f .)
-REAL_NAME=$(basename $DIR)
-NAME=$(echo "$REAL_NAME" | tr '[:upper:]' '[:lower:]')
-APP_DIR=$DIR/app
-COMPOSE=$DIR/docker-compose.yml
-CACHE=~/.craftman/cache
-CRAFT_ZIP=$CACHE/craft.zip
-FORCE_UPDATE=0
-FORCE_OVERWRITE=0
 
-# Default variables
-ENVIRONMENT="dev"
-DB_PATH="/data/db"
-ACTION="usage"
+function setup()
+{
+  SCRIPT_NAME=$(basename $(readlink -f $0))
+  ROOT=$(dirname $(readlink -f $0))
+  DIR=$(readlink -f .)
+  REAL_NAME=$(basename $DIR)
+  NAME=$(echo "$REAL_NAME" | tr '[:upper:]' '[:lower:]')
+  APP_DIR=$DIR/app
+  COMPOSE=$DIR/docker-compose.yml
+  CACHE=~/.craftman/cache
+  CRAFT_ZIP=$CACHE/craft.zip
+
+  # Default variables
+  FORCE_UPDATE=0
+  FORCE_OVERWRITE=0
+  ACTION="usage"
+}
 
 function usage()
 {
@@ -146,6 +148,8 @@ function parse()
   shift
 }
 
+setup "$@"
+
 # Create default directories
 mkdir -p $CACHE
 
@@ -156,5 +160,4 @@ mkdir -p $CACHE
     )
 
 parse "$@"
-
 $ACTION "$@"
