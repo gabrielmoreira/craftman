@@ -1,5 +1,21 @@
 # Craft CMS Manager
 
+The Craft CMS is an excellent content management tool, but its configuration and setup can be a bit troublesome for those not familiar with PHP.
+
+This is the main reason Craftman arise , to help speed set up and start a new installation of Craft CMS smoothly .
+
+1. Install craftman:
+
+    curl -o- https://raw.githubusercontent.com/gabrielmoreira/craftman/master/craftman_install | sh
+
+2. Create a new directory:
+
+    mkdir MyBlog && cd MyBlog
+  
+3. And start a complete development environment for Craft CMS:
+
+    craftman install
+
 ## Installation
 
 First you'll need to make sure your system has git, docker and docker-compose. 
