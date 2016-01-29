@@ -22,8 +22,8 @@ install_craftman_from_git() {
   if [ -d "$CRAFTMAN_DIR/.git" ]; then
     echo "=> craftman is already installed in $CRAFTMAN_DIR, trying to update using git"
     printf "\r=> "
-    cd "$CRAFTMAN_DIR" && (command git fetch 2> /dev/null || {
-      echo >&2 "Failed to update craftman, run 'git fetch' in $CRAFTMAN_DIR yourself." && exit 1
+    cd "$CRAFTMAN_DIR" && (command git pull 2> /dev/null || {
+      echo >&2 "Failed to update craftman, run 'git pull' in $CRAFTMAN_DIR yourself." && exit 1
     })
   else
     # Cloning to $CRAFTMAN_DIR
