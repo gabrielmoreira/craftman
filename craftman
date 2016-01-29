@@ -40,14 +40,29 @@ function setup()
 function usage()
 {
   echo "Craft CMS manager"
-  echo ""
-  echo "$SCRIPT_NAME [options] (install|admin|open|start|status|stop|craft:run|mysql:run|mysql:backup|mysql:restore|craftman:upgrade) [arguments]"
-  echo ""
-  echo '  -h --help'
-  echo '  -D --force-download  Force latest Craft CMS download from site'
-  echo '  -O --force-overwrite Regenerate and overwrite configuration files over ${APP_DIR}/ and ${SCRIPTS_DIR}/ directories'
-  echo '  -R --force-recreate  Force containers recreation'
-  echo '  -P --port            HTTP port to expose on host'
+  echo
+  echo "Usage: $SCRIPT_NAME [options] <COMMAND> [args]"
+  echo
+  echo "Commands:"
+  echo 
+  echo " $SCRIPT_NAME install               Install Craft CMS in current directory"
+  echo " $SCRIPT_NAME open                  Open Craft CMS public site"
+  echo " $SCRIPT_NAME admin                 Open Craft CMS admin dashboard"
+  echo " $SCRIPT_NAME start                 Start Craft CMS docker containers"
+  echo " $SCRIPT_NAME stop                  Stop Craft CMS docker containers"
+  echo " $SCRIPT_NAME status                Check Craft CMS docker containers status"
+  echo " $SCRIPT_NAME craft:run             Open bash or run a command on Craft docker container"
+  echo " $SCRIPT_NAME mysql:run             Open mysql client or run a command on MySQL docker container"
+  echo " $SCRIPT_NAME mysql:backup          Create a backup at ./$BACKUP_DIR"
+  echo " $SCRIPT_NAME mysql:restore <file>  Restore a backup from <file> (.sql.gz) to MySQL database"
+  echo " $SCRIPT_NAME craftman:upgrade      Upgrade Craftman"
+  echo
+  echo "Options:"
+  echo " -h, --help"
+  echo " -P, --port            HTTP port to expose on host"
+  echo " -D, --force-download  Force latest Craft CMS download from site"
+  echo " -O, --force-overwrite Regenerate and overwrite configuration files over ${APP_DIR}/ and ${SCRIPTS_DIR}/ directories"
+  echo " -R, --force-recreate  Force containers recreation"
   echo ""
 }
 
