@@ -41,7 +41,7 @@ function usage()
 {
   echo "Craft CMS manager"
   echo ""
-  echo "$SCRIPT_NAME [options] (install|admin|open|start|stop|craft:run|mysql:run|mysql:backup|mysql:restore|craftman:upgrade) [arguments]"
+  echo "$SCRIPT_NAME [options] (install|admin|open|start|status|stop|craft:run|mysql:run|mysql:backup|mysql:restore|craftman:upgrade) [arguments]"
   echo ""
   echo '  -h --help'
   echo '  -D --force-download  Force latest Craft CMS download from site'
@@ -256,6 +256,12 @@ function start()
   craft_run "/scripts/$PHP_INSTALL_SCRIPT_NAME"
 }
 
+function status()
+{
+  log "Craft CMS containers status"
+  $COMPOSER ps | grep -v "mysql_data"
+}
+
 function stop()
 {
   log "Stopping Craft CMS containers"
@@ -378,6 +384,10 @@ while [ "$1" != "" ]; do
       ;;
     start)
       COMMAND="start"
+      break
+      ;;
+    status)
+      COMMAND="status"
       break
       ;;
     stop)
