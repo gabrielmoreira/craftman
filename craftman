@@ -12,23 +12,39 @@ function setup()
   DIR=$(readlink -f .)
   REAL_NAME=$(basename $DIR)
   NAME=$(echo "$REAL_NAME" | tr '[:upper:]' '[:lower:]')
-  APP_DIR=$DIR/app
+  APP_DIR=app
+  APP_PATH=$DIR/$APP_DIR
+  SCRIPTS_DIR=scripts
+  SCRIPTS_PATH=$DIR/$SCRIPTS_DIR
   COMPOSE=$DIR/docker-compose.yml
+  PHP_INSTALL_SCRIPT_NAME=php_install
+  PHP_INSTALL_SCRIPT_PATH=$SCRIPTS_PATH/$PHP_INSTALL_SCRIPT_NAME
+  CRAFT_DB_CONFIG_PATH=$APP_PATH/craft/config/db.php
+  CRAFT_GENERAL_CONFIG_PATH=$APP_PATH/craft/config/general.php
   CACHE=~/.craftman/cache
   CRAFT_ZIP=$CACHE/craft.zip
+  WWW_GROUP=33
+  www_PERMISSIONS=777
+  COMPOSER="docker-compose -f $COMPOSE"
 
   # Default variables
-  FORCE_UPDATE=0
+  CRAFT_HTTP_PORT=
+  FORCE_DOWNLOAD=0
   FORCE_OVERWRITE=0
-  ACTION="usage"
+  FORCE_RECREATE=0
 }
 
 function usage()
 {
   echo "Craft CMS manager"
   echo ""
-  echo "$SCRIPT_NAME [options] (install|start) [arguments]"
+  echo "$SCRIPT_NAME [options] (install|start|craft:run|mysql:run) [arguments]"
+  echo ""
   echo '  -h --help'
+  echo '  -D --force-download  Force latest Craft CMS download from site'
+  echo '  -O --force-overwrite Regenerate and overwrite configuration files over ${APP_DIR}/ and ${SCRIPTS_DIR}/ directories'
+  echo '  -R --force-recreate  Force containers recreation'
+  echo '  -P --port            HTTP port to expose on host'
   echo ""
 }
 
@@ -46,7 +62,7 @@ function abort()
 function download()
 {
   log "Preparing to download Craft CMS"
-  if [ -f $CRAFT_ZIP ] && [ "$FORCE_UPDATE" == "0" ]; then
+  if [ -f $CRAFT_ZIP ] && [ "$FORCE_DOWNLOAD" == "0" ]; then
     log "+ Using Craft CMS from local cache"
   else
     log "+ Downloading Craft CMS from https://craftcms.com/latest.zip"
@@ -57,107 +73,258 @@ function download()
 function unpack()
 {
   log "Unpacking Craft CMS"
-  mkdir -p $APP_DIR
-  if [ "$(ls -A $APP_DIR)" ] && [ "$FORCE_OVERWRITE" == "0" ]; then
-    abort "+ $APP_DIR is not empty"
+  mkdir -p $APP_PATH
+  if [ "$(ls -A $APP_PATH)" ] && [ "$FORCE_OVERWRITE" == "0" ]; then
+    abort "+ $APP_PATH is not empty"
   else
-    log "+ Unzipping craft.zip to $APP_DIR"
-    unzip -qo $CRAFT_ZIP -d $APP_DIR
+    log "+ Unzipping craft.zip to $APP_PATH"
+    unzip -qo $CRAFT_ZIP -d $APP_PATH
+    rm -f $CRAFT_DB_CONFIG_PATH
+    rm -f $CRAFT_GENERAL_CONFIG_PATH
+    if [ -d "$APP_PATH/html" ]; then
+      log "+ Directory already exist $APP_PATH/html."
+    else
+      mkdir $APP_PATH/html
+    fi
+    mv -f $APP_PATH/public/* $APP_PATH/html
+    if [ ! -f "$APP_PATH/html/.htaccess" ]; then
+      mv $APP_PATH/html/htaccess $APP_PATH/html/.htaccess
+    fi
+    rm -Rf $APP_PATH/public
   fi
 }
 
 function configure()
 {
-  log "Configuring Craft CMS docker"
+  log "Configure Craft CMS"
+  create_php_install_script
+  create_craft_db_config
+  create_craft_general_config
   create_compose_file
 }
 
 function create_compose_file()
 {
-  if [ -f $COMPOSE ]; then
+  if [ -f $COMPOSE ] && [ "$FORCE_OVERWRITE" == "0" ]; then
     log "+ Using existent $(basename $COMPOSE)"
   else
     log "+ Creating $(basename $COMPOSE) file"
+
+if [ ! "$CRAFT_HTTP_PORT" == "" ]; then
+  COMPOSE_PORTS="ports:"$'\n'"    - \"$CRAFT_HTTP_PORT:80\""
+fi
     cat > $COMPOSE <<- EOF
 craft:
-  image: "php:latest"
+  image: "php:5-apache"
   links:
     - "mysql:mysql"
+  volumes:
+    - "./$APP_DIR:/var/www"
+    - "./$SCRIPTS_DIR:/scripts"
+  $COMPOSE_PORTS
 mysql:
-  image: "mariadb:latest"
+  image: "mariadb:10.1"
+  volumes_from:
+    - "mysql_data"
+  environment:
+    - MYSQL_DATABASE=craft
+    - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+mysql_data:
+  image: "debian:jessie"
+  volumes:
+    - "/var/lib/mysql"
 EOF
   fi
 }
 
-function create()
+function create_php_install_script()
 {
-  log "Creating Craft CMS container"
+  mkdir -p $SCRIPTS_PATH
+  if [ -f $PHP_INSTALL_SCRIPT_PATH ] && [ "$FORCE_OVERWRITE" == "0" ]; then
+    log "+ Using existent $(basename $PHP_INSTALL_SCRIPT_PATH)"
+  else
+    log "+ Creating $(basename $PHP_INSTALL_SCRIPT_PATH) file"
+    cat > $PHP_INSTALL_SCRIPT_PATH <<- EOF
+#!/bin/sh
+set -e
+echo "===> Starting PHP configuration"
+chown -R :$WWW_GROUP /var/www
+chmod -R $www_PERMISSIONS /var/www
+if [ -f /scripts/$PHP_INSTALL_SCRIPT_NAME.ok ]; then
+  echo "===> PHP already configured"
+else
+  apt-get update
+  apt-get install -y --no-install-recommends \
+          libfreetype6-dev \
+          libjpeg62-turbo-dev \
+          libmcrypt-dev \
+          libpng12-dev \
+          libmagickwand-dev \
+          vim curl
+  printf "\n" | pecl install imagick
+  docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/
+  docker-php-ext-install -j\$(nproc) iconv mcrypt gd mbstring pdo pdo_mysql
+  docker-php-ext-enable imagick
+  touch /scripts/$PHP_INSTALL_SCRIPT_NAME.ok
+  a2enmod rewrite setenvif deflate headers filter
+  apache2ctl restart
+fi
+EOF
+  fi
+  chmod +x $PHP_INSTALL_SCRIPT_PATH
+  if [ "$FORCE_RECREATE" == "1" ]; then
+    rm -f /scripts/$PHP_INSTALL_SCRIPT_NAME.ok
+  fi
+}
+
+function create_craft_db_config()
+{
+  if [ -f $CRAFT_DB_CONFIG_PATH ] && [ "$FORCE_OVERWRITE" == "0" ]; then
+    log "+ Using existent $(basename $CRAFT_DB_CONFIG_PATH)"
+  else
+    log "+ Creating $(basename $CRAFT_DB_CONFIG_PATH) file"
+    cat > $CRAFT_DB_CONFIG_PATH <<- EOF
+<?php
+/**
+ * Database Configuration
+ * You can see a list of the default settings in craft/app/etc/config/defaults/db.php
+ */
+\$env = getenv("MYSQL_ENV") ?: "MYSQL_PORT";
+\$url = getenv(\$env) ?: getenv("CLEARDB_DATABASE_URL");
+if (getenv("MYSQL_ENV_MYSQL_ALLOW_EMPTY_PASSWORD") == "yes") {
+ \$url = 'mysql://' . (getenv("MYSQL_USER") ?: 'root') . '@' . getenv("MYSQL_PORT_3306_TCP_ADDR") . ':' . getenv("MYSQL_PORT_3306_TCP_PORT") . '/' . getenv("MYSQL_ENV_MYSQL_DATABASE");
+}
+\$url = \$url ?: getenv("MYSQL_URL");
+\$url = parse_url(\$url ?: 'mysql://root@localhost');
+
+return array(
+  'server' => getenv('CRAFT_DB_SERVER') ?: \$url["host"],
+  'port' => getenv('CRAFT_DB_PORT') ?: \$url["port"],
+  'user' =>  getenv('CRAFT_DB_USER') ?: \$url["user"],
+  'password' =>  getenv('CRAFT_DB_PASSWORD') ?: (\$url["pass"] ?: ""),
+  'database' => getenv('CRAFT_DB_NAME') ?: substr(\$url["path"],1),
+  'tablePrefix' => getenv('CRAFT_DB_TABLE_PREFIX') ?: 'craft',
+);
+?>
+EOF
+  fi
+}
+
+function create_craft_general_config()
+{
+  if [ -f $CRAFT_GENERAL_CONFIG_PATH ] && [ "$FORCE_OVERWRITE" == "0" ]; then
+    log "+ Using existent $(basename $CRAFT_GENERAL_CONFIG_PATH)"
+  else
+    log "+ Creating $(basename $CRAFT_GENERAL_CONFIG_PATH) file"
+    cat > $CRAFT_GENERAL_CONFIG_PATH <<- EOF
+<?php
+/**
+ * General Configuration
+ *
+ * You can see a list of the default settings in craft/app/etc/config/defaults/general.php
+ */
+return array(
+  '*' => array(
+    'omitScriptNameInUrls' => true,
+    'sendPoweredByHeader' => false,
+    'devMode' => getenv("CRAFT_DEVMODE") == "true"
+  )
+);
+?>
+EOF
+  fi
 }
 
 function start()
 {
   log "Starting Craft CMS containers"
-  docker-compose -f $COMPOSE up 
+  UP_ARGS=""
+  [ "$FORCE_RECREATE" == "1" ] && UP_ARGS="--force-recreate"
+  $COMPOSER up $UP_ARGS -d
+  craft_run "/scripts/$PHP_INSTALL_SCRIPT_NAME"
 }
 
 function install()
 {
-  log "Starting Craft CMS installation"
+  log "Installing Craft..."
   download
   unpack
   configure
-  create
   start
 }
 
-function parse()
+function craft_run()
 {
-  while [ "$1" != "" ]; do
-    PARAM=`echo $1 | awk -F= '{print $1}'`
-    VALUE=`echo $1 | awk -F= '{print $2}'`
-    case $PARAM in
-      -h | --help)
-        usage
-        exit
-        ;;
-      -U | --force-update)
-        FORCE_UPDATE=1
-        ;;
-      -F | --force-overwrite)
-        FORCE_OVERWRITE=1
-        ;;
-  # --option)
-  #   OPTION=$VALUE
-  #   ;;
-      install)
-        ACTION="install"
-        break
-        ;;
-      start)
-        ACTION="start"
-        break
-        ;;
-      *)
-        echo "ERROR: unknown parameter \"$PARAM\""
-        usage
-        exit 1
-        ;;
-    esac
-    shift
-  done
-  shift
+  CMD="${@:-bash}"
+  docker exec -i -t $($COMPOSER ps | grep craft | cut -f 1 -d ' ') sh -c "export TERM=dumb && $CMD"
 }
 
+function mysql_run()
+{
+  CMD="${@:-mysql}"
+  docker exec -i -t $($COMPOSER ps | grep mysqld | cut -f 1 -d ' ') sh -c "export TERM=dumb && $CMD"
+}
+
+# Configure variables
 setup "$@"
 
 # Create default directories
 mkdir -p $CACHE
 
 # Load custom variables
-[ -f $DIR/.craftman ] \
-  && (log "Loading $DIR/.craftman" \
-      && . $DIR/.craftman
-    )
+if [ -f $DIR/.craftman ]; then
+  log "Loading $DIR/.craftman"
+  . $DIR/.craftman
+fi
 
-parse "$@"
-$ACTION "$@"
+# Parse arguments
+while [ "$1" != "" ]; do
+  PARAM=`echo $1 | awk -F= '{print $1}'`
+  VALUE=`echo $1 | awk -F= '{print $2}'`
+  case $PARAM in
+    -h | --help)
+      usage
+      exit
+      ;;
+    -D | --force-download)
+      FORCE_DOWNLOAD="1"
+      ;;
+    -O | --force-overwrite)
+      FORCE_OVERWRITE="1"
+      ;;
+    -R | --force-recreate)
+      FORCE_RECREATE="1"
+      ;;
+    -P | --port)
+      CRAFT_HTTP_PORT=$VALUE
+      ;;
+    install)
+      COMMAND="install"
+      break
+      ;;
+    start)
+      COMMAND="start"
+      break
+      ;;
+    craft:run)
+      COMMAND="craft_run"
+      break
+      ;;
+    mysql:run)
+      COMMAND="mysql_run"
+      break
+      ;;
+    *)
+      echo "ERROR: unknown parameter \"$PARAM\""
+      usage
+      exit 1
+      ;;
+  esac
+  shift
+done
+shift || echo "ERROR: command is required"
+
+
+# Run command
+COMMAND="${COMMAND:-usage}"
+$COMMAND "$@"
