@@ -4,15 +4,15 @@ The Craft CMS is an excellent content management tool, but its configuration and
 
 This is the main reason Craftman arise , to help speed set up and start a new installation of Craft CMS smoothly .
 
-1. Install craftman:
+### 1. Install craftman:
 
     curl -o- https://raw.githubusercontent.com/gabrielmoreira/craftman/master/craftman_install | sh
 
-2. Create a new directory:
+### 2. Create a new directory:
 
     mkdir MyBlog && cd MyBlog
   
-3. And start a complete development environment for Craft CMS:
+### 3. And start a complete development environment for Craft CMS:
 
     craftman install
 
