@@ -19,7 +19,7 @@ or Wget:
 <sub>The script clones the craftman repository to `~/.craftman/bin` and adds the source line to your profile (`~/.bash_profile`, `~/.zshrc` or `~/.profile`).</sub>
 
 You can customize the install source, directory and profile using the `CRAFTMAN_DIR`, and `PROFILE` variables.
-Eg: `curl ... | CRAFTMAN_DIR="path/to/nvm" sh`
+Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
 
 
 ## Usage
