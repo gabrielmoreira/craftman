@@ -34,13 +34,14 @@ function setup()
   FORCE_DOWNLOAD=0
   FORCE_OVERWRITE=0
   FORCE_RECREATE=0
+  OPEN_SITE_PATH=/
 }
 
 function usage()
 {
   echo "Craft CMS manager"
   echo ""
-  echo "$SCRIPT_NAME [options] (install|start|craft:run|mysql:run|mysql:backup|mysql:restore|craftman:upgrade) [arguments]"
+  echo "$SCRIPT_NAME [options] (install|admin|open|start|stop|craft:run|mysql:run|mysql:backup|mysql:restore|craftman:upgrade) [arguments]"
   echo ""
   echo '  -h --help'
   echo '  -D --force-download  Force latest Craft CMS download from site'
@@ -169,8 +170,17 @@ else
   docker-php-ext-enable imagick
   touch /scripts/$PHP_INSTALL_SCRIPT_NAME.ok
   a2enmod rewrite setenvif deflate headers filter
-  apache2ctl restart
 fi
+
+echo
+echo "*************************************************"
+echo
+echo "  Run 'craftman admin' to complete installation, "
+echo "   or 'craftman open' to access your site"
+echo
+echo "*************************************************"
+echo
+apache2ctl restart
 EOF
   fi
   chmod +x $PHP_INSTALL_SCRIPT_PATH
@@ -246,6 +256,12 @@ function start()
   craft_run "/scripts/$PHP_INSTALL_SCRIPT_NAME"
 }
 
+function stop()
+{
+  log "Stopping Craft CMS containers"
+  $COMPOSER stop
+}
+
 function install()
 {
   log "Installing Craft..."
@@ -259,6 +275,15 @@ function craft_run()
 {
   CMD="${@:-bash}"
   docker exec -i -t $(craft_container) sh -c "export TERM=dumb && $CMD"
+}
+
+function craft_open()
+{
+  URL=`docker-compose port craft 80`
+  if [ "$URL" == "" ]; then
+    URL=`docker inspect $(craft_container) | grep \"IPAddress\" | cut -f 4 -d '"' | head -n 1`
+  fi
+  browser_open http://${URL}${OPEN_SITE_PATH}
 }
 
 function craft_container()
@@ -306,6 +331,14 @@ function craftman_upgrade()
   fi
 }
 
+function browser_open()
+{
+  URL=$1
+  [[ -x $BROWSER ]] && exec "$BROWSER" "$1"
+  path=$(which xdg-open || which gnome-open) && exec "$path" "$1"
+  echo "Can't find browser"
+}
+
 # Configure variables
 setup "$@"
 
@@ -347,12 +380,25 @@ while [ "$1" != "" ]; do
       COMMAND="start"
       break
       ;;
+    stop)
+      COMMAND="stop"
+      break
+      ;;
     craftman:upgrade)
       COMMAND="craftman_upgrade"
       break
       ;;
     craft:run)
       COMMAND="craft_run"
+      break
+      ;;
+    open | craft:open)
+      COMMAND="craft_open"
+      break
+      ;;
+    admin | craft:admin)
+      OPEN_SITE_PATH="/admin"
+      COMMAND="craft_open"
       break
       ;;
     mysql:run)
