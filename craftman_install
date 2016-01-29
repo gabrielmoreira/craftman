@@ -1,0 +1,132 @@
+#!/bin/sh
+
+{ # this ensures the entire script is downloaded #
+
+craftman_has() {
+  type "$1" > /dev/null 2>&1
+}
+
+if [ -z "$CRAFTMAN_DIR" ]; then
+  CRAFTMAN_DIR="$HOME/.craftman/bin"
+fi
+
+craftman_latest_version() {
+  echo "master"
+}
+
+craftman_source() {
+  echo "https://github.com/gabrielmoreira/craftman.git"
+}
+
+install_craftman_from_git() {
+  if [ -d "$CRAFTMAN_DIR/.git" ]; then
+    echo "=> craftman is already installed in $CRAFTMAN_DIR, trying to update using git"
+    printf "\r=> "
+    cd "$CRAFTMAN_DIR" && (command git fetch 2> /dev/null || {
+      echo >&2 "Failed to update craftman, run 'git fetch' in $CRAFTMAN_DIR yourself." && exit 1
+    })
+  else
+    # Cloning to $CRAFTMAN_DIR
+    echo "=> Downloading craftman from git to '$CRAFTMAN_DIR'"
+    printf "\r=> "
+    mkdir -p "$CRAFTMAN_DIR"
+    command git clone "$(craftman_source git)" "$CRAFTMAN_DIR"
+  fi
+  cd "$CRAFTMAN_DIR" && command git checkout --quiet $(craftman_latest_version)
+  if [ ! -z "$(cd "$CRAFTMAN_DIR" && git show-ref refs/heads/master)" ]; then
+    if git branch --quiet 2>/dev/null; then
+      cd "$CRAFTMAN_DIR" && command git branch --quiet -D master >/dev/null 2>&1
+    else
+      echo >&2 "Your version of git is out of date. Please update it!"
+      cd "$CRAFTMAN_DIR" && command git branch -D master >/dev/null 2>&1
+    fi
+  fi
+  return
+}
+
+craftman_detect_profile() {
+  if [ -n "$PROFILE" -a -f "$PROFILE" ]; then
+    echo "$PROFILE"
+    return
+  fi
+
+  local DETECTED_PROFILE
+  DETECTED_PROFILE=''
+  local SHELLTYPE
+  SHELLTYPE="$(basename /$SHELL)"
+
+  if [ $SHELLTYPE = "bash" ]; then
+    if [ -f "$HOME/.bashrc" ]; then
+      DETECTED_PROFILE="$HOME/.bashrc"
+    elif [ -f "$HOME/.bash_profile" ]; then
+      DETECTED_PROFILE="$HOME/.bash_profile"
+    fi
+  elif [ $SHELLTYPE = "zsh" ]; then
+    DETECTED_PROFILE="$HOME/.zshrc"
+  fi
+
+  if [ -z "$DETECTED_PROFILE" ]; then
+    if [ -f "$HOME/.profile" ]; then
+      DETECTED_PROFILE="$HOME/.profile"
+    elif [ -f "$HOME/.bashrc" ]; then
+      DETECTED_PROFILE="$HOME/.bashrc"
+    elif [ -f "$HOME/.bash_profile" ]; then
+      DETECTED_PROFILE="$HOME/.bash_profile"
+    elif [ -f "$HOME/.zshrc" ]; then
+      DETECTED_PROFILE="$HOME/.zshrc"
+    fi
+  fi
+
+  if [ ! -z "$DETECTED_PROFILE" ]; then
+    echo "$DETECTED_PROFILE"
+  fi
+}
+
+craftman_do_install() {
+  if ! craftman_has "git"; then
+    echo >&2 "You need git to install craftman"
+    exit 1
+  fi
+  install_craftman_from_git
+
+  echo
+
+  local CRAFTMAN_PROFILE
+  CRAFTMAN_PROFILE=$(craftman_detect_profile)
+
+  SOURCE_STR="\nalias craftman=\"$CRAFTMAN_DIR/craftman\""
+
+  if [ -z "$CRAFTMAN_PROFILE" ] ; then
+    echo "=> Profile not found. Tried $CRAFTMAN_PROFILE (as defined in \$PROFILE), ~/.bashrc, ~/.bash_profile, ~/.zshrc, and ~/.profile."
+    echo "=> Create one of them and run this script again"
+    echo "=> Create it (touch $CRAFTMAN_PROFILE) and run this script again"
+    echo "   OR"
+    echo "=> Append the following lines to the correct file yourself:"
+    printf "$SOURCE_STR"
+    echo
+  else
+    if ! command grep -qc '/craftman' "$CRAFTMAN_PROFILE"; then
+      echo "=> Appending source string to $CRAFTMAN_PROFILE"
+      printf "$SOURCE_STR\n" >> "$CRAFTMAN_PROFILE"
+    else
+      echo "=> Source string already in $CRAFTMAN_PROFILE"
+    fi
+  fi
+
+  echo "=> Close and reopen your terminal to start using craftman"
+  craftman_reset
+}
+
+#
+# Unsets the various functions defined
+# during the execution of the install script
+#
+craftman_reset() {
+  unset -f craftman_reset craftman_has craftman_latest_version \
+    craftman_source install_craftman_from_git \
+    craftman_detect_profile craftman_do_install
+}
+
+[ "_$CRAFTMAN_ENV" = "_testing" ] || craftman_do_install
+
+} # this ensures the entire script is downloaded #

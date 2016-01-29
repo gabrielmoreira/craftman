@@ -23,7 +23,7 @@ function setup()
   PHP_INSTALL_SCRIPT_PATH=$SCRIPTS_PATH/$PHP_INSTALL_SCRIPT_NAME
   CRAFT_DB_CONFIG_PATH=$APP_PATH/craft/config/db.php
   CRAFT_GENERAL_CONFIG_PATH=$APP_PATH/craft/config/general.php
-  CACHE=~/.craftman/cache
+  CACHE=$HOME/.craftman/cache
   CRAFT_ZIP=$CACHE/craft.zip
   WWW_GROUP=33
   www_PERMISSIONS=777
