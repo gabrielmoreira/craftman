@@ -14,6 +14,8 @@ function setup()
   NAME=$(echo "$REAL_NAME" | tr '[:upper:]' '[:lower:]')
   APP_DIR=app
   APP_PATH=$DIR/$APP_DIR
+  BACKUP_DIR=backups
+  BACKUP_PATH=$DIR/$BACKUP_DIR
   SCRIPTS_DIR=scripts
   SCRIPTS_PATH=$DIR/$SCRIPTS_DIR
   COMPOSE=$DIR/docker-compose.yml
@@ -256,13 +258,42 @@ function install()
 function craft_run()
 {
   CMD="${@:-bash}"
-  docker exec -i -t $($COMPOSER ps | grep craft | cut -f 1 -d ' ') sh -c "export TERM=dumb && $CMD"
+  docker exec -i -t $(craft_container) sh -c "export TERM=dumb && $CMD"
+}
+
+function craft_container()
+{
+  echo $($COMPOSER ps | grep craft | cut -f 1 -d ' ')
 }
 
 function mysql_run()
 {
   CMD="${@:-mysql}"
-  docker exec -i -t $($COMPOSER ps | grep mysqld | cut -f 1 -d ' ') sh -c "export TERM=dumb && $CMD"
+  docker exec -i -t $(mysql_container) sh -c "export TERM=dumb && $CMD"
+}
+
+function mysql_backup()
+{
+  mkdir -p $BACKUP_PATH
+  BACKUP_NAME=$BACKUP_PATH/${NAME}_`date +%Y-%m-%d_%H-%M`
+  mysql_run mysqldump craft > $BACKUP_NAME.sql
+  gzip -f $BACKUP_NAME.sql
+  log "Backup file created at $BACKUP_NAME.sql.gz"
+}
+
+function mysql_container()
+{
+  echo $($COMPOSER ps | grep mysqld | cut -f 1 -d ' ')
+}
+
+function mysql_restore()
+{
+  echo "Restoring backup $1"
+  RESTORE_NAME="`basename $1`.sql"
+  gzip -d -c "$1" > /tmp/$RESTORE_NAME
+  docker cp /tmp/$RESTORE_NAME $(mysql_container):/tmp
+  mysql_run "mysql craft -e 'source /tmp/$RESTORE_NAME'"
+  rm /tmp/$RESTORE_NAME
 }
 
 # Configure variables
@@ -314,6 +345,14 @@ while [ "$1" != "" ]; do
       COMMAND="mysql_run"
       break
       ;;
+    mysql:backup)
+      COMMAND="mysql_backup"
+      break
+      ;;
+    mysql:restore)
+      COMMAND="mysql_restore"
+      break
+      ;;
     *)
       echo "ERROR: unknown parameter \"$PARAM\""
       usage
@@ -323,7 +362,6 @@ while [ "$1" != "" ]; do
   shift
 done
 shift || echo "ERROR: command is required"
-
 
 # Run command
 COMMAND="${COMMAND:-usage}"
