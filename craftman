@@ -1,0 +1,117 @@
+#!/bin/sh
+
+#
+# Craft CMS manager
+# 
+NAME=$(basename $(readlink -f $0))
+ROOT=$(dirname $(readlink -f $0))
+COMPOSE=$ROOT/docker-compose.yml
+
+# Default variables
+ENVIRONMENT="dev"
+DB_PATH="/data/db"
+ACTION="usage"
+
+function usage()
+{
+  echo "Craft CMS manager"
+  echo ""
+  echo "$NAME [options] (install|start) [arguments]"
+  echo '  -h --help'
+  echo ""
+}
+
+function log()
+{
+    echo "===> $*"
+}
+
+function download()
+{
+  log "Preparing to download Craft CMS"
+  mkdir -p $ROOT/.cache
+  [ -f $ROOT/.cache/craft.zip ] \
+  && log "+ Using Craft CMS from local cache" \
+  || (log "+ Downloading Craft CMS from https://craftcms.com/latest.zip" \
+    && curl -o $ROOT/.cache/craft.zip -L https://craftcms.com/latest.zip?accept_license=yes)
+}
+
+function unpack()
+{
+  log "Unpacking Craft CMS"
+  mkdir -p $ROOT/app
+}
+
+function configure()
+{
+  log "Configuring Craft CMS docker"
+  create_compose_file
+}
+
+function create_compose_file()
+{
+  [ -f $COMPOSE ] \
+  && log "+ Using existent $(basename $COMPOSE)" \
+  || (log "+ Creating $(basename $COMPOSE) file" \
+    && cat > $COMPOSE <<- EOF
+craft:
+  image: "php:latest"
+  links:
+    - "mysql:mysql"
+mysql:
+  image: "mariadb:latest"
+EOF
+)
+}
+
+function create()
+{
+  log "Creating Craft CMS container"
+}
+
+function start()
+{
+  log "Starting Craft CMS containers"
+  docker-compose -f $COMPOSE up 
+}
+
+function install()
+{
+  log "Starting Craft CMS installation"
+  download
+  unpack
+  configure
+  create
+  start
+}
+
+while [ "$1" != "" ]; do
+  PARAM=`echo $1 | awk -F= '{print $1}'`
+  VALUE=`echo $1 | awk -F= '{print $2}'`
+  case $PARAM in
+    -h | --help)
+      usage
+      exit
+      ;;
+# --option)
+#   OPTION=$VALUE
+#   ;;
+    install)
+      ACTION="install"
+      break
+      ;;
+    start)
+      ACTION="start"
+      break
+      ;;
+    *)
+      echo "ERROR: unknown parameter \"$PARAM\""
+      usage
+      exit 1
+      ;;
+  esac
+  shift
+done
+shift
+
+$ACTION "$@"
