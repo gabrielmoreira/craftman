@@ -40,7 +40,7 @@ function usage()
 {
   echo "Craft CMS manager"
   echo ""
-  echo "$SCRIPT_NAME [options] (install|start|craft:run|mysql:run) [arguments]"
+  echo "$SCRIPT_NAME [options] (install|start|craft:run|mysql:run|mysql:backup|mysql:restore|craftman:upgrade) [arguments]"
   echo ""
   echo '  -h --help'
   echo '  -D --force-download  Force latest Craft CMS download from site'
@@ -296,6 +296,16 @@ function mysql_restore()
   rm /tmp/$RESTORE_NAME
 }
 
+function craftman_upgrade()
+{
+  if [ -d $ROOT/.git ]; then
+    cd $ROOT
+    git pull
+  else
+    echo "Are you sure craftman was installed in $ROOT? Try reinstalling running\n curl -o- https://raw.githubusercontent.com/gabrielmoreira/craftman/master/craftman_install | sh"
+  fi
+}
+
 # Configure variables
 setup "$@"
 
@@ -335,6 +345,10 @@ while [ "$1" != "" ]; do
       ;;
     start)
       COMMAND="start"
+      break
+      ;;
+    craftman:upgrade)
+      COMMAND="craftman_upgrade"
       break
       ;;
     craft:run)
