@@ -214,7 +214,7 @@ echo "===> Starting dependencies installation"
 chown -R :$WWW_GROUP /var/www
 chmod -R $www_PERMISSIONS /var/www
 if [ -f /scripts/$INSTALL_DEPS.ok ]; then
-  echo "===> Dependencies already configured"
+  echo "===> Dependencies already installed"
 else
   # Download and install libraries
   apt-get update
@@ -235,7 +235,7 @@ else
   # Other configurations
   a2enmod rewrite setenvif deflate headers filter
   touch /scripts/$INSTALL_DEPS.ok
-  echo "===> PHP configured"
+  echo "===> Dependencies installed"
 fi
 EOF
   fi
