@@ -62,6 +62,8 @@ function interpolate()
   CACHE="$CRAFTMAN_DIR/cache"
   PHP_INI_PATH="$SCRIPTS_PATH/root_files/usr/local/etc/php/php.ini"
   CRAFT_ZIP="$CACHE/$CRAFT_ZIPNAME"
+  PROCFILE="$DIR/Procfile"
+  COMPOSER_JSON="$DIR/composer.json"
 }
 
 function usage()
@@ -224,13 +226,17 @@ else
           libmcrypt-dev \
           libpng12-dev \
           libmagickwand-dev \
-          vim curl rsync
-  printf "\n" | pecl install -f imagick 
+          vim curl rsync git
+  printf "\n" | pecl install -f imagick
 
   # Configure and make libraries
   docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/
-  docker-php-ext-install -j\$(nproc) iconv mcrypt gd mbstring pdo pdo_mysql
+  docker-php-ext-install -j\$(nproc) iconv mcrypt gd mbstring pdo pdo_mysql zip
   docker-php-ext-enable imagick
+
+  # Install PHP composer
+  cd /scripts
+  curl -sS https://getcomposer.org/installer | php
 
   # Other configurations
   a2enmod rewrite setenvif deflate headers filter
@@ -344,6 +350,13 @@ function stop()
   docker_compose stop
 }
 
+function restart()
+{
+  log "Restarting Craft CMS containers"
+  stop
+  start
+}
+
 function install()
 {
   touch "$DIR/.craftman"
@@ -390,7 +403,7 @@ function dependencies_install()
 function craft_run()
 {
   CMD="${@:-bash}"
-  docker exec -i -t $(craft_container) sh -c "export TERM=dumb && $CMD"
+  docker exec -i -t $(craft_container) sh -i -c "$CMD"
 }
 
 function craft_copy()
@@ -433,15 +446,17 @@ function craft_ip()
 function mysql_run()
 {
   CMD="${@:-mysql}"
-  docker exec -i -t $(mysql_container) sh -c "export TERM=dumb && $CMD"
+  docker exec -i -t $(mysql_container) sh -i -c "$CMD"
 }
 
 function mysql_backup()
 {
   mkdir -p $BACKUP_PATH
   BACKUP_FILE=$BACKUP_PATH/${NAME}_`date +%Y-%m-%d_%H-%M`
+  log "Dumping from MySQL"
   mysql_run mysqldump craft > "$BACKUP_FILE.sql"
   mysql_backup_hook "$BACKUP_FILE.sql"
+  log "Gziping backup file"
   gzip -f $BACKUP_FILE.sql
   log "Backup file created at $BACKUP_FILE.sql.gz"
 }
@@ -459,9 +474,14 @@ function mysql_restore()
   RESTORE_FILE="/tmp/$RESTORE_NAME"
   gzip -d -c "$1" > "$RESTORE_FILE"
   mysql_restore_hook "$RESTORE_FILE"
-  docker cp /tmp/$RESTORE_NAME $(mysql_container):/tmp
+  log "Copy backup file to container /tmp"
+  docker cp $RESTORE_FILE $(mysql_container):/tmp
+  log "Import backup file to MySQL"
   mysql_run "mysql craft -e 'source $RESTORE_FILE'"
-  rm $RESTORE_FILE
+  log "Removing all temporary files"
+  rm -f  $RESTORE_FILE
+  mysql_run "rm -f $RESTORE_FILE"
+  log "Backup restore completed"
 }
 
 function craftman_upgrade()
@@ -472,6 +492,62 @@ function craftman_upgrade()
   else
     log "Are you sure craftman was installed in $ROOT? Try reinstalling running\n curl -o- https://raw.githubusercontent.com/gabrielmoreira/craftman/master/craftman_install | sh"
   fi
+}
+
+function create_procfile()
+{
+  if [ -f $PROCFILE ] && [ "$FORCE_OVERWRITE" == "0" ]; then
+    log "+ Using existent $(basename $PROCFILE)"
+  else
+    log "+ Creating $(basename $PROCFILE) file"
+    cat > $PROCFILE <<- EOF
+web: vendor/bin/heroku-php-apache2 -i scripts/root_files/usr/local/etc/php/php.ini app/html
+EOF
+  fi
+}
+
+function create_composer_json()
+{
+  if [ -f $COMPOSER_JSON ] && [ "$FORCE_OVERWRITE" == "0" ]; then
+    log "+ Using existent $(basename $COMPOSER_JSON)"
+  else
+    log "+ Creating $(basename $COMPOSER_JSON) file"
+    cat > $COMPOSER_JSON <<- EOF
+{
+  "require": {
+    "ext-mbstring": "*",
+    "ext-imagick": "*",
+    "php": "^5.6"
+  }
+}
+EOF
+  fi
+}
+
+function heroku_prepare()
+{
+  log "Preparing Craft CMS for heroku deploy"
+  create_procfile
+  create_composer_json
+  composer_lock
+}
+
+function composer_prepare()
+{
+  log "Preparing composer.json"
+  create_composer_json
+}
+
+function composer_lock()
+{
+  [ -f $DIR/composer.json ] || abort "composer.json is required"
+  log "Generating composer.lock"
+  craft_run "mkdir -p /scripts/composer"
+  docker cp $DIR/composer.json $(craft_container):/scripts/composer
+  craft_run "cd /scripts/composer && /scripts/composer.phar install && /scripts/composer.phar update"
+  mv -f $DIR/composer.lock $DIR/composer.lock.bak
+  docker cp $(craft_container):/scripts/composer/composer.lock $DIR/composer.lock
+  rm -f $DIR/composer.lock.bak
 }
 
 function regenerate()
@@ -590,6 +666,10 @@ while [ "$1" != "" ]; do
       COMMAND="stop"
       break
       ;;
+    restart)
+      COMMAND="restart"
+      break
+      ;;
     --upgrade)
       COMMAND="craftman_upgrade"
       break
@@ -628,6 +708,18 @@ while [ "$1" != "" ]; do
       ;;
     deps:install)
       COMMAND="dependencies_install"
+      break
+      ;;
+    composer:prepare)
+      COMMAND="composer_prepare"
+      break
+      ;;
+    composer:lock)
+      COMMAND="composer_lock"
+      break
+      ;;
+    heroku:prepare)
+      COMMAND="heroku_prepare"
       break
       ;;
     regenerate)
