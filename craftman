@@ -79,13 +79,13 @@ function usage()
   echo " $SCRIPT_NAME status                Check Craft CMS docker containers status"
   echo " $SCRIPT_NAME ip                    Show Craft CMS docker container IP address"
   echo " $SCRIPT_NAME run                   Open bash or run a command on Craft docker container"
-  echo " $SCRIPT_NAME copy                  Copy and overwrite './$SCRIPTS_DIR/root_files' to"
+  echo " $SCRIPT_NAME copy                  Copy and overwrite $SCRIPTS_DIR/root_files/ to"
   echo "                                Craft container's root / with recursive directories"
   echo
-  echo " $SCRIPT_NAME deps:install          Run dependency installer script './$SCRIPTS_DIR/$INSTALL_DEPS'"
+  echo " $SCRIPT_NAME deps:install          Run dependency installer script $SCRIPTS_DIR/$INSTALL_DEPS"
   echo
   echo " $SCRIPT_NAME mysql:run             Open mysql client or run a command on MySQL docker container"
-  echo " $SCRIPT_NAME mysql:backup          Create a backup at ./$BACKUP_DIR"
+  echo " $SCRIPT_NAME mysql:backup          Create a backup at ${BACKUP_DIR}/"
   echo " $SCRIPT_NAME mysql:restore <file>  Restore a backup from <file> (.sql.gz) to MySQL database"
   echo
   echo " $SCRIPT_NAME --upgrade             Upgrade Craftman"
