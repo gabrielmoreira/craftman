@@ -87,6 +87,14 @@ craftman_do_install() {
     echo >&2 "You need git to install craftman"
     exit 1
   fi
+  if ! craftman_has "docker"; then
+    echo >&2 "You need docker to install craftman"
+    exit 1
+  fi
+  if ! craftman_has "docker-compose"; then
+    echo >&2 "You need docker-compose to install craftman"
+    exit 1
+  fi
   install_craftman_from_git
 
   echo
