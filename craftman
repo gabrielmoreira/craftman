@@ -540,14 +540,16 @@ function composer_prepare()
 
 function composer_lock()
 {
-  [ -f $DIR/composer.json ] || abort "composer.json is required"
+  [ -f "$DIR/composer.json" ] || abort "composer.json is required"
   log "Generating composer.lock"
   craft_run "mkdir -p /scripts/composer"
-  docker cp $DIR/composer.json $(craft_container):/scripts/composer
+  docker cp "$DIR/composer.json" "$(craft_container):/scripts/composer"
   craft_run "cd /scripts/composer && /scripts/composer.phar install && /scripts/composer.phar update"
-  mv -f $DIR/composer.lock $DIR/composer.lock.bak
-  docker cp $(craft_container):/scripts/composer/composer.lock $DIR/composer.lock
-  rm -f $DIR/composer.lock.bak
+  if [ -f "$DIR/composer.lock" ]; then
+    mv -f "$DIR/composer.lock" "$DIR/composer.lock.bak"
+  fi
+  cp "$SCRIPTS_PATH/composer/composer.lock" "$DIR/composer.lock"
+  rm -f "$DIR/composer.lock.bak"
 }
 
 function regenerate()
@@ -558,7 +560,7 @@ function regenerate()
 
 function docker_compose()
 {
-  docker-compose -f $COMPOSE_FILE $@
+  docker-compose -f "$COMPOSE_FILE" $@
 }
 
 function browser_open()
