@@ -1,40 +1,67 @@
 #!/bin/sh
 set -e
-
 #
 # Craft CMS manager
-# 
+#
 
-function setup()
+function initialize()
 {
+  # Base craftman configs
   SCRIPT_NAME=$(basename $(readlink -f $0))
   ROOT=$(dirname $(readlink -f $0))
-  DIR=$(readlink -f .)
+  DIR=`find_closest ".craftman"`
+  CRAFTMAN_DIR="$HOME/.craftman"
+  [ "$DIR" == "" ] && DIR="."
+  DIR="$(readlink -f $DIR)"
   REAL_NAME=$(basename $DIR)
   NAME=$(echo "$REAL_NAME" | tr '[:upper:]' '[:lower:]')
-  APP_DIR=app
-  APP_PATH=$DIR/$APP_DIR
-  BACKUP_DIR=backups
-  BACKUP_PATH=$DIR/$BACKUP_DIR
-  SCRIPTS_DIR=scripts
-  SCRIPTS_PATH=$DIR/$SCRIPTS_DIR
-  COMPOSE=$DIR/docker-compose.yml
-  PHP_INSTALL_SCRIPT_NAME=php_install
-  PHP_INSTALL_SCRIPT_PATH=$SCRIPTS_PATH/$PHP_INSTALL_SCRIPT_NAME
-  CRAFT_DB_CONFIG_PATH=$APP_PATH/craft/config/db.php
-  CRAFT_GENERAL_CONFIG_PATH=$APP_PATH/craft/config/general.php
-  CACHE=$HOME/.craftman/cache
-  CRAFT_ZIP=$CACHE/craft.zip
-  WWW_GROUP=33
-  www_PERMISSIONS=777
-  COMPOSER="docker-compose -f $COMPOSE"
+  CRAFT_DOWNLOAD_URL="https://craftcms.com/latest.zip?accept_license=yes"
 
-  # Default variables
-  CRAFT_HTTP_PORT=
-  FORCE_DOWNLOAD=0
-  FORCE_OVERWRITE=0
-  FORCE_RECREATE=0
-  OPEN_SITE_PATH=/
+  # Default craftman configurations
+  CRAFT_ZIPNAME="craft-`date +%Y-%m`.zip"
+  APP_DIR="app"
+  BACKUP_DIR="backups"
+  SCRIPTS_DIR="scripts"
+  COMPOSE_FILENAME="docker-compose.yml"
+  INSTALL_DEPS="install-deps"
+  WWW_GROUP="33"
+  www_PERMISSIONS="777"
+
+  # Default craftman options
+  CRAFT_HTTP_PORT=""
+  FORCE_DOWNLOAD="0"
+  FORCE_OVERWRITE="0"
+  FORCE_RECREATE="0"
+  OPEN_SITE_PATH="/"
+
+  # Load custom variables and hooks
+  if [ -f $DIR/.craftman ]; then
+    debug "Loading $DIR/.craftman"
+    . $DIR/.craftman
+  fi
+
+  # Customize any variable
+  interpolate
+  configuration_hook
+  interpolate
+
+  # Create default directories
+  mkdir -p $CACHE
+}
+
+function interpolate()
+{
+  # Interpolation
+  APP_PATH="$DIR/$APP_DIR"
+  BACKUP_PATH="$DIR/$BACKUP_DIR"
+  SCRIPTS_PATH="$DIR/$SCRIPTS_DIR"
+  COMPOSE_FILE="$DIR/$COMPOSE_FILENAME"
+  INSTALL_DEPS_PATH="$SCRIPTS_PATH/$INSTALL_DEPS"
+  CRAFT_DB_CONFIG_PATH="$APP_PATH/craft/config/db.php"
+  CRAFT_GENERAL_CONFIG_PATH="$APP_PATH/craft/config/general.php"
+  CACHE="$CRAFTMAN_DIR/cache"
+  PHP_INI_PATH="$SCRIPTS_PATH/root_files/usr/local/etc/php/php.ini"
+  CRAFT_ZIP="$CACHE/$CRAFT_ZIPNAME"
 }
 
 function usage()
@@ -44,31 +71,46 @@ function usage()
   echo "Usage: $SCRIPT_NAME [options] <COMMAND> [args]"
   echo
   echo "Commands:"
-  echo 
   echo " $SCRIPT_NAME install               Install Craft CMS in current directory"
   echo " $SCRIPT_NAME open                  Open Craft CMS public site"
   echo " $SCRIPT_NAME admin                 Open Craft CMS admin dashboard"
   echo " $SCRIPT_NAME start                 Start Craft CMS docker containers"
   echo " $SCRIPT_NAME stop                  Stop Craft CMS docker containers"
   echo " $SCRIPT_NAME status                Check Craft CMS docker containers status"
-  echo " $SCRIPT_NAME craft:run             Open bash or run a command on Craft docker container"
+  echo " $SCRIPT_NAME ip                    Show Craft CMS docker container IP address"
+  echo " $SCRIPT_NAME run                   Open bash or run a command on Craft docker container"
+  echo " $SCRIPT_NAME copy                  Copy and overwrite './$SCRIPTS_DIR/root_files' to"
+  echo "                                Craft container's root / with recursive directories"
+  echo
+  echo " $SCRIPT_NAME deps:install          Run dependency installer script './$SCRIPTS_DIR/$INSTALL_DEPS'"
+  echo
   echo " $SCRIPT_NAME mysql:run             Open mysql client or run a command on MySQL docker container"
   echo " $SCRIPT_NAME mysql:backup          Create a backup at ./$BACKUP_DIR"
   echo " $SCRIPT_NAME mysql:restore <file>  Restore a backup from <file> (.sql.gz) to MySQL database"
-  echo " $SCRIPT_NAME craftman:upgrade      Upgrade Craftman"
+  echo
+  echo " $SCRIPT_NAME --upgrade             Upgrade Craftman"
   echo
   echo "Options:"
   echo " -h, --help"
   echo " -P, --port            HTTP port to expose on host"
-  echo " -D, --force-download  Force latest Craft CMS download from site"
-  echo " -O, --force-overwrite Regenerate and overwrite configuration files over ${APP_DIR}/ and ${SCRIPTS_DIR}/ directories"
-  echo " -R, --force-recreate  Force containers recreation"
-  echo ""
+  echo
+  echo " -F, --force-all       Force redownload Craft CMS, regenerate and overwrite configurations and recreate containers"
+  echo " -D, --force-download  Force to download latest Craft CMS from site"
+  echo " -O, --force-overwrite Force to overwrite generated configuration files at ${APP_DIR}/ and ${SCRIPTS_DIR}/ directories"
+  echo " -R, --force-recreate  Force to recreate containers"
+  echo
+}
+
+function debug()
+{
+  if [ "$DEBUG" != "" ]; then
+    echo "---> $@"
+  fi
 }
 
 function log()
 {
-    echo "===> $*"
+    echo "===> $@"
 }
 
 function abort()
@@ -83,8 +125,10 @@ function download()
   if [ -f $CRAFT_ZIP ] && [ "$FORCE_DOWNLOAD" == "0" ]; then
     log "+ Using Craft CMS from local cache"
   else
-    log "+ Downloading Craft CMS from https://craftcms.com/latest.zip"
-    curl -o $CRAFT_ZIP -L https://craftcms.com/latest.zip?accept_license=yes
+    log "+ Downloading Craft CMS from $CRAFT_DOWNLOAD_URL"
+    curl -o $CRAFT_ZIP.partial --retry 3 -0 -L -C - $CRAFT_DOWNLOAD_URL
+    rm -Rf $CRAFT_ZIP
+    mv -f $CRAFT_ZIP.partial $CRAFT_ZIP
   fi
 }
 
@@ -100,7 +144,7 @@ function unpack()
     rm -f $CRAFT_DB_CONFIG_PATH
     rm -f $CRAFT_GENERAL_CONFIG_PATH
     if [ -d "$APP_PATH/html" ]; then
-      log "+ Directory already exist $APP_PATH/html."
+      log "+ Directory already exist $APP_PATH/html"
     else
       mkdir $APP_PATH/html
     fi
@@ -115,23 +159,24 @@ function unpack()
 function configure()
 {
   log "Configure Craft CMS"
-  create_php_install_script
+  create_install_deps_script
   create_craft_db_config
   create_craft_general_config
-  create_compose_file
+  create_docker_compose_file
+  create_php_ini
 }
 
-function create_compose_file()
+function create_docker_compose_file()
 {
-  if [ -f $COMPOSE ] && [ "$FORCE_OVERWRITE" == "0" ]; then
-    log "+ Using existent $(basename $COMPOSE)"
+  if [ -f $COMPOSE_FILE ] && [ "$FORCE_OVERWRITE" == "0" ]; then
+    log "+ Using existent $(basename $COMPOSE_FILE)"
   else
-    log "+ Creating $(basename $COMPOSE) file"
+    log "+ Creating $(basename $COMPOSE_FILE) file"
 
 if [ ! "$CRAFT_HTTP_PORT" == "" ]; then
   COMPOSE_PORTS="ports:"$'\n'"    - \"$CRAFT_HTTP_PORT:80\""
 fi
-    cat > $COMPOSE <<- EOF
+    cat > $COMPOSE_FILE <<- EOF
 craft:
   image: "php:5-apache"
   links:
@@ -155,22 +200,23 @@ EOF
   fi
 }
 
-function create_php_install_script()
+function create_install_deps_script()
 {
   mkdir -p $SCRIPTS_PATH
-  if [ -f $PHP_INSTALL_SCRIPT_PATH ] && [ "$FORCE_OVERWRITE" == "0" ]; then
-    log "+ Using existent $(basename $PHP_INSTALL_SCRIPT_PATH)"
+  if [ -f $INSTALL_DEPS_PATH ] && [ "$FORCE_OVERWRITE" == "0" ]; then
+    log "+ Using existent $(basename $INSTALL_DEPS_PATH)"
   else
-    log "+ Creating $(basename $PHP_INSTALL_SCRIPT_PATH) file"
-    cat > $PHP_INSTALL_SCRIPT_PATH <<- EOF
+    log "+ Creating $(basename $INSTALL_DEPS_PATH) file"
+    cat > $INSTALL_DEPS_PATH <<- EOF
 #!/bin/sh
 set -e
-echo "===> Starting PHP configuration"
+echo "===> Starting dependencies installation"
 chown -R :$WWW_GROUP /var/www
 chmod -R $www_PERMISSIONS /var/www
-if [ -f /scripts/$PHP_INSTALL_SCRIPT_NAME.ok ]; then
-  echo "===> PHP already configured"
+if [ -f /scripts/$INSTALL_DEPS.ok ]; then
+  echo "===> Dependencies already configured"
 else
+  # Download and install libraries
   apt-get update
   apt-get install -y --no-install-recommends \
           libfreetype6-dev \
@@ -178,29 +224,24 @@ else
           libmcrypt-dev \
           libpng12-dev \
           libmagickwand-dev \
-          vim curl
-  printf "\n" | pecl install imagick
+          vim curl rsync
+  printf "\n" | pecl install -f imagick 
+
+  # Configure and make libraries
   docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/
   docker-php-ext-install -j\$(nproc) iconv mcrypt gd mbstring pdo pdo_mysql
   docker-php-ext-enable imagick
-  touch /scripts/$PHP_INSTALL_SCRIPT_NAME.ok
-  a2enmod rewrite setenvif deflate headers filter
-fi
 
-echo
-echo "*************************************************"
-echo
-echo "  Run 'craftman admin' to complete installation, "
-echo "   or 'craftman open' to access your site"
-echo
-echo "*************************************************"
-echo
-apache2ctl restart
+  # Other configurations
+  a2enmod rewrite setenvif deflate headers filter
+  touch /scripts/$INSTALL_DEPS.ok
+  echo "===> PHP configured"
+fi
 EOF
   fi
-  chmod +x $PHP_INSTALL_SCRIPT_PATH
+  chmod +x $INSTALL_DEPS_PATH
   if [ "$FORCE_RECREATE" == "1" ]; then
-    rm -f /scripts/$PHP_INSTALL_SCRIPT_NAME.ok
+    rm -f /scripts/$INSTALL_DEPS.ok
   fi
 }
 
@@ -262,34 +303,88 @@ EOF
   fi
 }
 
+function create_php_ini()
+{
+  mkdir -p $(dirname "$PHP_INI_PATH")
+  if [ -f $PHP_INI_PATH ] && [ "$FORCE_OVERWRITE" == "0" ]; then
+    log "+ Using existent $(basename $PHP_INI_PATH)"
+  else
+    log "+ Creating $(basename $PHP_INI_PATH) file"
+    cat > $PHP_INI_PATH <<- EOF
+[PHP]
+upload_max_filesize = 200M
+post_max_size = 210M
+max_execution_time = 120
+max_input_vars = 100000
+EOF
+  fi
+}
+
 function start()
 {
   log "Starting Craft CMS containers"
   UP_ARGS=""
   [ "$FORCE_RECREATE" == "1" ] && UP_ARGS="--force-recreate"
-  $COMPOSER up $UP_ARGS -d
-  craft_run "/scripts/$PHP_INSTALL_SCRIPT_NAME"
+
+  docker_compose up $UP_ARGS -d
+  dependencies_install
 }
+
+
 
 function status()
 {
   log "Craft CMS containers status"
-  $COMPOSER ps | grep -v "mysql_data"
+  docker_compose ps | grep -v "mysql_data"
 }
 
 function stop()
 {
   log "Stopping Craft CMS containers"
-  $COMPOSER stop
+  docker_compose stop
 }
 
 function install()
 {
+  touch "$DIR/.craftman"
   log "Installing Craft..."
   download
   unpack
   configure
   start
+
+  log
+  log "*************************************************"
+  log
+  log "  Run 'craftman admin' to complete installation, "
+  log "  and 'craftman open' to access your site"
+  log
+  log "*************************************************"
+  log
+  craft_admin
+}
+
+function craft_start()
+{
+  start
+
+  log
+  log "*****************************************************"
+  log
+  log "  Run 'craftman admin' to access your control panel, "
+  log "   or 'craftman open' to access your site"
+  log
+  log "*****************************************************"
+  log
+  craft_admin
+}
+
+function dependencies_install()
+{
+  craft_run "/scripts/$INSTALL_DEPS"
+  craft_copy
+  post_install_hook
+  craft_run "apache2ctl restart"
 }
 
 function craft_run()
@@ -298,18 +393,41 @@ function craft_run()
   docker exec -i -t $(craft_container) sh -c "export TERM=dumb && $CMD"
 }
 
+function craft_copy()
+{
+  log "Copying all files and directories from '$SCRIPTS_PATH/root_files' to craft container root '/'.'"
+  if [ -d "$SCRIPTS_PATH/root_files" ]; then
+    craft_run "rsync -hPprvs /scripts/root_files/ /"
+    log "All configuration files synced"
+  else
+    log "Please, check if '$SCRIPTS_PATH/root_files' directory exist"
+  fi
+}
+
 function craft_open()
 {
   URL=`docker-compose port craft 80`
   if [ "$URL" == "" ]; then
-    URL=`docker inspect $(craft_container) | grep \"IPAddress\" | cut -f 4 -d '"' | head -n 1`
+    URL=$(craft_ip)
   fi
   browser_open http://${URL}${OPEN_SITE_PATH}
 }
 
+function craft_admin()
+{
+  OPEN_SITE_PATH="/admin"
+  craft_open
+}
+
 function craft_container()
 {
-  echo $($COMPOSER ps | grep craft | cut -f 1 -d ' ')
+  echo $(docker_compose ps | grep craft | cut -f 1 -d ' ')
+}
+
+function craft_ip()
+{
+  CONTAINER=$(craft_container)
+  echo $(docker inspect --format '{{ .NetworkSettings.IPAddress }}' $CONTAINER)
 }
 
 function mysql_run()
@@ -321,25 +439,29 @@ function mysql_run()
 function mysql_backup()
 {
   mkdir -p $BACKUP_PATH
-  BACKUP_NAME=$BACKUP_PATH/${NAME}_`date +%Y-%m-%d_%H-%M`
-  mysql_run mysqldump craft > $BACKUP_NAME.sql
-  gzip -f $BACKUP_NAME.sql
-  log "Backup file created at $BACKUP_NAME.sql.gz"
+  BACKUP_FILE=$BACKUP_PATH/${NAME}_`date +%Y-%m-%d_%H-%M`
+  mysql_run mysqldump craft > "$BACKUP_FILE.sql"
+  mysql_backup_hook "$BACKUP_FILE.sql"
+  gzip -f $BACKUP_FILE.sql
+  log "Backup file created at $BACKUP_FILE.sql.gz"
 }
 
 function mysql_container()
 {
-  echo $($COMPOSER ps | grep mysqld | cut -f 1 -d ' ')
+  echo $(docker_compose ps | grep mysqld | cut -f 1 -d ' ')
 }
 
 function mysql_restore()
 {
-  echo "Restoring backup $1"
+  [ "$1" == "" ] && abort "File is required <file.sql.gz>"
+  log "Restoring backup $1"
   RESTORE_NAME="`basename $1`.sql"
-  gzip -d -c "$1" > /tmp/$RESTORE_NAME
+  RESTORE_FILE="/tmp/$RESTORE_NAME"
+  gzip -d -c "$1" > "$RESTORE_FILE"
+  mysql_restore_hook "$RESTORE_FILE"
   docker cp /tmp/$RESTORE_NAME $(mysql_container):/tmp
-  mysql_run "mysql craft -e 'source /tmp/$RESTORE_NAME'"
-  rm /tmp/$RESTORE_NAME
+  mysql_run "mysql craft -e 'source $RESTORE_FILE'"
+  rm $RESTORE_FILE
 }
 
 function craftman_upgrade()
@@ -348,29 +470,83 @@ function craftman_upgrade()
     cd $ROOT
     git pull
   else
-    echo "Are you sure craftman was installed in $ROOT? Try reinstalling running\n curl -o- https://raw.githubusercontent.com/gabrielmoreira/craftman/master/craftman_install | sh"
+    log "Are you sure craftman was installed in $ROOT? Try reinstalling running\n curl -o- https://raw.githubusercontent.com/gabrielmoreira/craftman/master/craftman_install | sh"
   fi
+}
+
+function regenerate()
+{
+  configure
+  dependencies_install
+}
+
+function docker_compose()
+{
+  docker-compose -f $COMPOSE_FILE $@
 }
 
 function browser_open()
 {
   URL=$1
-  [[ -x $BROWSER ]] && exec "$BROWSER" "$1"
-  path=$(which xdg-open || which gnome-open) && exec "$path" "$1"
-  echo "Can't find browser"
+  log "Opening $1 in your browser"
+  [[ -x $BROWSER ]] && exec "$BROWSER" "$1" > /dev/null 2>&1
+  path=$(which xdg-open || which gnome-open) && exec "$path" "$1" > /dev/null 2>&1
+  abort "Can't find a browser"
 }
 
+function find_closest()
+{
+  filename="$1"
+  search_dir="."
+  shift 1
+  set +e
+  while [[ "$search_dir" != "/" ]];
+  do
+      FIND=$(find "$search_dir" -maxdepth 1 -mindepth 1 -name "$filename")
+      [ "$FIND" != "" ] && break
+      # To ignore symlinks use "$(realsearch_dir -s $search_dir/..)"
+      search_dir="$(readlink -f $search_dir/..)"
+  done
+  set -e
+  [ -f "$search_dir/$filename" ] && echo "$search_dir" || echo ""
+}
+
+
+# *******
+#  HOOKS
+# *******
+#  Override hooks at $DIR/.craftman shellscript
+
+# Hook for change variables/configurations
+function configuration_hook()
+{
+  :
+}
+
+# Hook after craft installation
+function post_install_hook()
+{
+  :
+}
+
+# Hook for process sql backup file
+function mysql_backup_hook()
+{
+  :
+}
+
+# Hook for process sql backup file
+function mysql_restore_hook()
+{
+  :
+}
+
+# ******
+#  MAIN
+# ******
+
 # Configure variables
-setup "$@"
-
-# Create default directories
-mkdir -p $CACHE
-
-# Load custom variables
-if [ -f $DIR/.craftman ]; then
-  log "Loading $DIR/.craftman"
-  . $DIR/.craftman
-fi
+initialize
 
 # Parse arguments
 while [ "$1" != "" ]; do
@@ -380,6 +556,11 @@ while [ "$1" != "" ]; do
     -h | --help)
       usage
       exit
+      ;;
+    -F | --force-all)
+      FORCE_DOWNLOAD="1"
+      FORCE_OVERWRITE="1"
+      FORCE_RECREATE="1"
       ;;
     -D | --force-download)
       FORCE_DOWNLOAD="1"
@@ -398,10 +579,10 @@ while [ "$1" != "" ]; do
       break
       ;;
     start)
-      COMMAND="start"
+      COMMAND="craft_start"
       break
       ;;
-    status)
+    status | ps)
       COMMAND="status"
       break
       ;;
@@ -409,12 +590,20 @@ while [ "$1" != "" ]; do
       COMMAND="stop"
       break
       ;;
-    craftman:upgrade)
+    --upgrade)
       COMMAND="craftman_upgrade"
       break
       ;;
-    craft:run)
+    run | craft:run)
       COMMAND="craft_run"
+      break
+      ;;
+    ip)
+      COMMAND="craft_ip"
+      break
+      ;;
+    copy | craft:copy)
+      COMMAND="craft_copy"
       break
       ;;
     open | craft:open)
@@ -422,8 +611,7 @@ while [ "$1" != "" ]; do
       break
       ;;
     admin | craft:admin)
-      OPEN_SITE_PATH="/admin"
-      COMMAND="craft_open"
+      COMMAND="craft_admin"
       break
       ;;
     mysql:run)
@@ -438,6 +626,15 @@ while [ "$1" != "" ]; do
       COMMAND="mysql_restore"
       break
       ;;
+    deps:install)
+      COMMAND="dependencies_install"
+      break
+      ;;
+    regenerate)
+      FORCE_OVERWRITE="1"
+      COMMAND="regenerate"
+      break
+      ;;
     *)
       echo "ERROR: unknown parameter \"$PARAM\""
       usage
@@ -446,8 +643,7 @@ while [ "$1" != "" ]; do
   esac
   shift
 done
-shift || echo "ERROR: command is required"
+shift || (echo "ERROR: command is required" && usage && exit 1)
 
-# Run command
-COMMAND="${COMMAND:-usage}"
+# Run initial command
 $COMMAND "$@"
