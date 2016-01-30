@@ -384,7 +384,7 @@ function dependencies_install()
   craft_run "/scripts/$INSTALL_DEPS"
   craft_copy
   post_install_hook
-  craft_run "apache2ctl restart"
+  docker-compose restart craft
 }
 
 function craft_run()
