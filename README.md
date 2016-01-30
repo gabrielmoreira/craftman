@@ -1,8 +1,8 @@
 # Craft CMS Manager
 
-The Craft CMS is an excellent content management tool, but its configuration and setup can be a bit troublesome for those not familiar with PHP.
+Craft CMS is an excellent content management tool, but its configuration and setup can be a bit troublesome for those not familiar with PHP.
 
-This is the main reason Craftman arise , to help speed set up and start a new installation of Craft CMS smoothly .
+This is the main reason `craftman` arise , to help speed set up and start a new Craft CMS installation smoothly.
 
 ### 1. Install craftman:
 
@@ -10,7 +10,7 @@ This is the main reason Craftman arise , to help speed set up and start a new in
 
 ### 2. Create a new directory:
 
-    mkdir MyBlog && cd MyBlog
+    mkdir MySite && cd MySite
   
 ### 3. And start a complete development environment for Craft CMS:
 
@@ -42,30 +42,42 @@ Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
 
  Output from `craftman -h`:
  
+    Craft CMS manager
+    
     Usage: craftman [options] <COMMAND> [args]
-
+    
     Commands:
-
-      craftman install               Install Craft CMS in current directory
-      craftman open                  Open Craft CMS public site
-      craftman admin                 Open Craft CMS admin dashboard
-      craftman start                 Start Craft CMS docker containers
-      craftman stop                  Stop Craft CMS docker containers
-      craftman status                Check Craft CMS docker containers status
-      craftman craft:run             Open bash or run a command on Craft docker container
-      craftman mysql:run             Open mysql client or run a command on MySQL docker container
-      craftman mysql:backup          Create a backup at ./backups
-      craftman mysql:restore <file>  Restore a backup from <file> (.sql.gz) to MySQL database
-      craftman craftman:upgrade      Upgrade Craftman
-
+     craftman install               Install Craft CMS in current directory
+     craftman open                  Open Craft CMS public site
+     craftman admin                 Open Craft CMS admin dashboard
+     craftman start                 Start Craft CMS docker containers
+     craftman stop                  Stop Craft CMS docker containers
+     craftman status                Check Craft CMS docker containers status
+     craftman ip                    Show Craft CMS docker container IP address
+     craftman run                   Open bash or run a command on Craft docker container
+     craftman copy                  Copy and overwrite scripts/root_files/ to
+                                    Craft container's root / with recursive directories
+    
+     craftman deps:install          Run dependency installer script scripts/install-deps
+    
+     craftman mysql:run             Open mysql client or run a command on MySQL docker container
+     craftman mysql:backup          Create a backup at backups/
+     craftman mysql:restore <file>  Restore a backup from <file> (.sql.gz) to MySQL database
+    
+     craftman --upgrade             Upgrade Craftman
+    
     Options:
-      -h, --help
-      -P, --port            HTTP port to expose on host
-      -D, --force-download  Force latest Craft CMS download from site
-      -O, --force-overwrite Regenerate and overwrite configuration files over app/ and scripts/ directories
-      -R, --force-recreate  Force containers recreation
+     -h, --help
+     -P, --port            HTTP port to expose on host
+    
+     -F, --force-all       Force redownload Craft CMS, regenerate and overwrite configurations and recreate containers
+     -D, --force-download  Force to download latest Craft CMS from site
+     -O, --force-overwrite Force to overwrite generated configuration files at app/ and scripts/ directories
+     -R, --force-recreate  Force to recreate containers
 
-If you want install craft, first create an empty directory and then run it:
+
+
+If you want install craft and map to a local http port:
 
     craftman --port=8080 install
 
@@ -110,6 +122,6 @@ If you try to install craft and the installation fails, you might get an error w
 
     file not found
 
-You can try force recreation of containers `-R` and force overwrite files `-O`, using:
+You can try force `-F` to redownload craft, regenerate configurations e recreate containers, using:
 
-    craftman -R -O -P=8080 install
+    craftman -F -P=8080 install
