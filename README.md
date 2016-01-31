@@ -100,6 +100,48 @@ If you want restore a mysql backup, run it:
 
     craftman craft:backup BACKUP_FILE_NAME
 
+## Advanced
+
+Sometimes we need a little more customization. For that, you can use craftman hooks:
+
+If you want hook mysql restore to edit .sql file before import:
+
+Edit your `[YOUR-PROJECT-DIRECTORY]/.craftman` and add this function:
+
+<sub>**IMPORTANT**: THIS HOOK CODE IS JUST A SAMPLE USAGE</sub>
+
+    function mysql_restore_hook()
+    {
+        log "Processing '$1' file before import"
+    	log "+ Replace www.mysite.com to localhost"
+    	log "+ Remove https from localhost URLs"
+    	log "+ Doesn't import craft_searchindex (We prefer to rebuild index using craft)"
+    	cat "$1" \
+    		| sed -e 's/www\.mysite\.com/localhost/g' \
+    		| sed -r 's/https?([:\/\\]+)localhost/http\1localhost/g' \
+    		| perl -pe 'BEGIN{undef $/;} s/INSERT INTO .?craft_searchindex.*?DROP TABLE/DROP TABLE/sg' \
+    			> "$1.tmp"
+    	log "+ Showing 20 lines of diff after file processed"
+    	diff "$1" "$1.tmp" | head -n 20
+    	log "+ Removing temporary files"
+    	mv "$1" "$1.bak"
+    	mv "$1.tmp" "$1"
+    	rm -f "$1.bak"
+    }
+    
+There are other hooks:
+
+function configuration_hook()
+
+        Use this hook to change default configurations/variables
+
+function mysql_backup_hook( *[sql-file-path]* )
+
+        Use this hook to preprocess .sql before gzip file
+
+function mysql_restore_hook( *[sql-file-path]* )
+
+        Use this hook to preprocess .sql before import to MySQL
 
 ## License
 
