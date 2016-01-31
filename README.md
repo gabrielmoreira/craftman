@@ -167,7 +167,7 @@ You can try force `-F` to redownload craft, regenerate configurations e recreate
 
     craftman -F -P=8080 install
 
-## ROADMAP
+## Roadmap
 
 - [x] MySQL backup and restore
 - [x] Heroku support (only using S3 or other cloud asset source)
