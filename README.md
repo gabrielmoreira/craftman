@@ -1,20 +1,7 @@
 # Craft CMS Manager
 
 Craft CMS is an excellent content management tool, but its configuration and setup can be a bit troublesome for those not familiar with PHP.
-
-This is the main reason `craftman` arise , to help speed set up and start a new Craft CMS installation smoothly.
-
-### 1. Install craftman:
-
-    curl -o- https://raw.githubusercontent.com/gabrielmoreira/craftman/master/craftman_install | sh
-
-### 2. Create a new directory:
-
-    mkdir MySite && cd MySite
-  
-### 3. And start a complete development environment for Craft CMS:
-
-    craftman install
+It's the main reason `craftman` arise, to help speed set up and start a new Craft CMS installation smoothly.
 
 ## Installation
 
@@ -37,7 +24,6 @@ or Wget:
 You can customize the install source, directory and profile using the `CRAFTMAN_DIR`, and `PROFILE` variables.
 Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
 
-
 ## Usage
 
  Output from `craftman -h`:
@@ -55,14 +41,19 @@ Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
      craftman status                Check Craft CMS docker containers status
      craftman ip                    Show Craft CMS docker container IP address
      craftman run                   Open bash or run a command on Craft docker container
-     craftman copy                  Copy and overwrite scripts/root_files/ to
+     craftman regenerate            Regenerate all craftman configuration files
+     craftman reconfigure           Run /home/gabriel/Projetos/Gabriel/craftman/scripts/configure
+     craftman copy                  Copy and overwrite scripts/root_files/**/* to
                                     Craft container's root / with recursive directories
-    
-     craftman deps:install          Run dependency installer script scripts/install-deps
     
      craftman mysql:run             Open mysql client or run a command on MySQL docker container
      craftman mysql:backup          Create a backup at backups/
      craftman mysql:restore <file>  Restore a backup from <file> (.sql.gz) to MySQL database
+    
+     craftman heroku:prepare        Generate required files to deploy to Heroku
+    
+     craftman composer:lock         Regenerate composer.lock for your composer.json file
+     craftman composer:prepare      Generate initial composer.json
     
      craftman --upgrade             Upgrade Craftman
     
@@ -76,16 +67,23 @@ Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
      -R, --force-recreate  Force to recreate containers
 
 
+If you want to develop locally a new site using Craft CMS:
 
-If you want install craft and map to a local http port:
+    mkdir mysite && cd mysite
 
     craftman --port=8080 install
 
-Wait installation and then you can access
+If you want to deploy on heroku:
 
-    http://localhost:8080
+    craftman heroku:prepare
 
-You can also access craft container bash running:
+    # commit your files, and then:
+
+    heroku create
+    heroku addons:create cleardb:ignite
+    heroku open
+
+How to access craft container terminal?
 
     craftman craft:run
 
