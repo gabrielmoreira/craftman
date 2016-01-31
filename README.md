@@ -34,7 +34,7 @@ Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
     
     Commands:
      craftman install               Install Craft CMS in current directory
-     craftman open                  Open Craft CMS public site
+     craftman open [path]           Open Craft CMS public site
      craftman admin                 Open Craft CMS admin dashboard
      craftman start                 Start Craft CMS docker containers
      craftman stop                  Stop Craft CMS docker containers
