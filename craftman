@@ -23,7 +23,7 @@ function initialize()
   BACKUP_DIR="backups"
   SCRIPTS_DIR="scripts"
   COMPOSE_FILENAME="docker-compose.yml"
-  INSTALL_DEPS="install-deps"
+  RECONFIGURE="configure"
   WWW_GROUP="33"
   www_PERMISSIONS="777"
 
@@ -56,7 +56,7 @@ function interpolate()
   BACKUP_PATH="$DIR/$BACKUP_DIR"
   SCRIPTS_PATH="$DIR/$SCRIPTS_DIR"
   COMPOSE_FILE="$DIR/$COMPOSE_FILENAME"
-  INSTALL_DEPS_PATH="$SCRIPTS_PATH/$INSTALL_DEPS"
+  RECONFIGURE_PATH="$SCRIPTS_PATH/$RECONFIGURE"
   CRAFT_DB_CONFIG_PATH="$APP_PATH/craft/config/db.php"
   CRAFT_GENERAL_CONFIG_PATH="$APP_PATH/craft/config/general.php"
   CACHE="$CRAFTMAN_DIR/cache"
@@ -81,14 +81,19 @@ function usage()
   echo " $SCRIPT_NAME status                Check Craft CMS docker containers status"
   echo " $SCRIPT_NAME ip                    Show Craft CMS docker container IP address"
   echo " $SCRIPT_NAME run                   Open bash or run a command on Craft docker container"
-  echo " $SCRIPT_NAME copy                  Copy and overwrite $SCRIPTS_DIR/root_files/ to"
+  echo " $SCRIPT_NAME regenerate            Regenerate all craftman configuration files"
+  echo " $SCRIPT_NAME reconfigure           Run $RECONFIGURE_PATH (use -F to force reinstallation)"
+  echo " $SCRIPT_NAME copy                  Copy and overwrite $SCRIPTS_DIR/root_files/**/* to"
   echo "                                Craft container's root / with recursive directories"
-  echo
-  echo " $SCRIPT_NAME deps:install          Run dependency installer script $SCRIPTS_DIR/$INSTALL_DEPS"
   echo
   echo " $SCRIPT_NAME mysql:run             Open mysql client or run a command on MySQL docker container"
   echo " $SCRIPT_NAME mysql:backup          Create a backup at ${BACKUP_DIR}/"
   echo " $SCRIPT_NAME mysql:restore <file>  Restore a backup from <file> (.sql.gz) to MySQL database"
+  echo
+  echo " $SCRIPT_NAME heroku:prepare        Generate required files to deploy to Heroku"
+  echo
+  echo " $SCRIPT_NAME composer:lock         Regenerate composer.lock for your composer.json file"
+  echo " $SCRIPT_NAME composer:prepare      Generate initial composer.json"
   echo
   echo " $SCRIPT_NAME --upgrade             Upgrade Craftman"
   echo
@@ -161,7 +166,7 @@ function unpack()
 function configure()
 {
   log "Configure Craft CMS"
-  create_install_deps_script
+  create_reconfigure_script
   create_craft_db_config
   create_craft_general_config
   create_docker_compose_file
@@ -202,22 +207,20 @@ EOF
   fi
 }
 
-function create_install_deps_script()
+function create_reconfigure_script()
 {
   mkdir -p $SCRIPTS_PATH
-  if [ -f $INSTALL_DEPS_PATH ] && [ "$FORCE_OVERWRITE" == "0" ]; then
-    log "+ Using existent $(basename $INSTALL_DEPS_PATH)"
+  if [ -f $RECONFIGURE_PATH ] && [ "$FORCE_OVERWRITE" == "0" ]; then
+    log "+ Using existent $(basename $RECONFIGURE_PATH)"
   else
-    log "+ Creating $(basename $INSTALL_DEPS_PATH) file"
-    cat > $INSTALL_DEPS_PATH <<- EOF
+    log "+ Creating $(basename $RECONFIGURE_PATH) file"
+    cat > $RECONFIGURE_PATH <<- EOF
 #!/bin/sh
 set -e
 echo "===> Starting dependencies installation"
-chown -R :$WWW_GROUP /var/www
-chmod -R $www_PERMISSIONS /var/www
 cd /scripts
 touch .gitignore
-if [ -f /scripts/$INSTALL_DEPS.ok ]; then
+if [ -f /scripts/$RECONFIGURE.ok ]; then
   echo "===> Dependencies already installed"
 else
   # Download and install libraries
@@ -238,20 +241,23 @@ else
 
   # Install PHP composer
   curl -sS https://getcomposer.org/installer | php
-  grep -q "composer.phar" ".gitignore" || (echo "composer.phar" >> .gitignore)
 
   # Other configurations
   a2enmod rewrite setenvif deflate headers filter
-  touch $INSTALL_DEPS.ok
-  grep -q "$INSTALL_DEPS.ok" ".gitignore" || (echo "$INSTALL_DEPS.ok" >> .gitignore)
+  touch $RECONFIGURE.ok
 
   echo "===> Dependencies installed"
 fi
+grep -q "composer.phar" ".gitignore" || (echo "composer.phar" >> .gitignore)
+grep -q "$RECONFIGURE.ok" ".gitignore" || (echo "$RECONFIGURE.ok" >> .gitignore)
+echo "===> Configuring site permissions"
+chown -R :$WWW_GROUP /var/www
+chmod -R $www_PERMISSIONS /var/www
 EOF
   fi
-  chmod +x $INSTALL_DEPS_PATH
+  chmod +x $RECONFIGURE_PATH
   if [ "$FORCE_RECREATE" == "1" ]; then
-    rm -f /scripts/$INSTALL_DEPS.ok
+    rm -f /scripts/$RECONFIGURE.ok
   fi
 }
 
@@ -396,7 +402,7 @@ function craft_start()
 
 function dependencies_install()
 {
-  craft_run "/scripts/$INSTALL_DEPS"
+  craft_run "/scripts/$RECONFIGURE"
   craft_copy
   post_install_hook
   docker-compose restart craft
@@ -544,7 +550,11 @@ function composer_lock()
 {
   [ -f "$DIR/composer.json" ] || abort "composer.json is required"
   log "Generating composer.lock"
-  craft_run "mkdir -p /scripts/composer"
+  mkdir -p "$SCRIPTS_PATH/composer"
+  cat > "$SCRIPTS_PATH/composer/.gitignore" <<- EOF
+*
+!.gitignore
+EOF
   docker cp "$DIR/composer.json" "$(craft_container):/scripts/composer"
   craft_run "cd /scripts/composer && /scripts/composer.phar install && /scripts/composer.phar update"
   if [ -f "$DIR/composer.lock" ]; then
@@ -710,7 +720,7 @@ while [ "$1" != "" ]; do
       COMMAND="mysql_restore"
       break
       ;;
-    deps:install)
+    reconfigure)
       COMMAND="dependencies_install"
       break
       ;;
