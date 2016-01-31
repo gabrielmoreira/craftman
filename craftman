@@ -11,7 +11,9 @@ function initialize()
   SELF=$(basename $(readlink -f $0))
   ROOT=$(dirname $(readlink -f $0))
   DIR=`find_closest ".craftman"`
-  CRAFTMAN_DIR="$HOME/.craftman"
+  if [ -z "$CRAFTMAN_DIR" ]; then
+    CRAFTMAN_DIR="$HOME/.craftman"
+  fi
   PLUGIN_PREFIX=""
   PLUGINS_DIR="$CRAFTMAN_DIR/plugins"
   PLUGINS_CORE_DIR="$ROOT/plugins"

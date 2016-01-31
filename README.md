@@ -152,19 +152,19 @@ Create your plugin and put at `~/.craftman/plugins/[your-plugin]/[your-plugin].p
 
 All public functions must start with `pluginname__`
 
-        Eg. function hello__usage()
+        function hello__usage()
 
 All private functions name must start with `__pluginname_`
 
-        Eg. function __hello_some_util()
+        function __hello_some_util()
 
 All variables must start with `PLUGINNAME__`
 
-        Eg. HELLO__VAR="Hello World"
+        HELLO__VAR="Hello World"
 
 All hooks must start with "pluginname_" and ends with "_hook"
 
-        Eg. function hello_world_hook()
+        function hello_world_hook()
 
 ## License
 
@@ -196,7 +196,7 @@ You can try force `-F` to redownload craft, regenerate configurations e recreate
 - [x] Heroku support (only using S3 or other cloud asset source)
 - [x] Plugins support
 - [ ] Plugin install and update commands
-- [ ] Advanced composer support (Eg. craftman compose:run install, craftman compose:run update, ...)
+- [ ] Advanced composer support (E.g. craftman compose:run install, craftman compose:run update, ...)
 - [ ] Destroy all containers command
 - [ ] Full backup and restore (code directory and database)
 - [ ] OSX support
