@@ -32,7 +32,6 @@ function initialize()
   FORCE_DOWNLOAD="0"
   FORCE_OVERWRITE="0"
   FORCE_RECREATE="0"
-  OPEN_SITE_PATH="/"
 
   # Load custom variables and hooks
   if [ -f $DIR/.craftman ]; then
@@ -74,7 +73,7 @@ function usage()
   echo
   echo "Commands:"
   echo " $SCRIPT_NAME install               Install Craft CMS in current directory"
-  echo " $SCRIPT_NAME open                  Open Craft CMS public site"
+  echo " $SCRIPT_NAME open [path]           Open Craft CMS public site"
   echo " $SCRIPT_NAME admin                 Open Craft CMS admin dashboard"
   echo " $SCRIPT_NAME start                 Start Craft CMS docker containers"
   echo " $SCRIPT_NAME stop                  Stop Craft CMS docker containers"
@@ -450,13 +449,12 @@ function craft_open()
   if [ "$URL" == "" ]; then
     URL=$(craft_ip)
   fi
-  browser_open http://${URL}${OPEN_SITE_PATH}
+  browser_open http://${URL}$1
 }
 
 function craft_admin()
 {
-  OPEN_SITE_PATH="/admin"
-  craft_open
+  craft_open "/admin"
 }
 
 function craft_container()
