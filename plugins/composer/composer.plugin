@@ -1,19 +1,20 @@
 #!/bin/sh
 PLUGIN_NAME="composer"
 
-function composer_usage()
+function composer__usage()
 {
-	echo " $SELF composer:prepare        Generate required files to deploy to Heroku"
+  echo " $SELF composer:lock         Regenerate composer.lock for your composer.json file"
+	echo " $SELF composer:prepare      Generate required files to deploy to Heroku"
 }
 
-function composer_interpolate()
+function composer__interpolate()
 {
   COMPOSER_JSON="$DIR/composer.json"
   INSTALL_COMPOSER="install.composer"
   INSTALL_COMPOSER_PATH="$SCRIPTS_PATH/$INSTALL_COMPOSER"
 }
 
-function composer_configure()
+function composer__configure()
 {
   cd "$SCRIPTS_PATH"
   add_gitignore "composer.phar"
@@ -31,12 +32,36 @@ EOF
   fi
 }
 
-function composer_configuration_run()
+function composer__configuration_run()
 {
   run_script_once "$INSTALL_COMPOSER"
 }
 
-function composer_create_json()
+function composer__prepare()
+{
+  log "Preparing composer.json"
+  __composer__create_json
+}
+
+function composer__lock()
+{
+  [ -f "$DIR/composer.json" ] || abort "composer.json is required"
+  log "Generating composer.lock"
+  mkdir -p "$SCRIPTS_PATH/composer"
+  cat > "$SCRIPTS_PATH/composer/.gitignore" <<- EOF
+*
+!.gitignore
+EOF
+  docker cp "$DIR/composer.json" "$(craft_container):/scripts/composer"
+  craft_exec "cd /scripts/composer && /scripts/composer.phar install && /scripts/composer.phar update"
+  if [ -f "$DIR/composer.lock" ]; then
+    mv -f "$DIR/composer.lock" "$DIR/composer.lock.bak"
+  fi
+  cp "$SCRIPTS_PATH/composer/composer.lock" "$DIR/composer.lock"
+  rm -f "$DIR/composer.lock.bak"
+}
+
+function __composer__create_json()
 {
   if [ -f $COMPOSER_JSON ] && [ "$FORCE_OVERWRITE" == "0" ]; then
     log "+ Using existent $(basename $COMPOSER_JSON)"
@@ -54,26 +79,3 @@ EOF
   fi
 }
 
-function composer_prepare()
-{
-  log "Preparing composer.json"
-  composer_create_json
-}
-
-function composer_lock()
-{
-  [ -f "$DIR/composer.json" ] || abort "composer.json is required"
-  log "Generating composer.lock"
-  mkdir -p "$SCRIPTS_PATH/composer"
-  cat > "$SCRIPTS_PATH/composer/.gitignore" <<- EOF
-*
-!.gitignore
-EOF
-  docker cp "$DIR/composer.json" "$(craft_container):/scripts/composer"
-  craft_exec "cd /scripts/composer && /scripts/composer.phar install && /scripts/composer.phar update"
-  if [ -f "$DIR/composer.lock" ]; then
-    mv -f "$DIR/composer.lock" "$DIR/composer.lock.bak"
-  fi
-  cp "$SCRIPTS_PATH/composer/composer.lock" "$DIR/composer.lock"
-  rm -f "$DIR/composer.lock.bak"
-}

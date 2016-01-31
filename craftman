@@ -12,6 +12,7 @@ function initialize()
   ROOT=$(dirname $(readlink -f $0))
   DIR=`find_closest ".craftman"`
   CRAFTMAN_DIR="$HOME/.craftman"
+  PLUGIN_PREFIX=""
   PLUGINS_DIR="$CRAFTMAN_DIR/plugins"
   PLUGINS_CORE_DIR="$ROOT/plugins"
   [ "$DIR" == "" ] && DIR="."
@@ -102,8 +103,8 @@ function usage()
   echo " $SELF status                Check Craft CMS docker containers status"
   echo " $SELF ip                    Show Craft CMS docker container IP address"
   echo " $SELF run                   Open bash or run a command on Craft docker container"
-  echo " $SELF regenerate            Regenerate all craftman configuration files"
-  echo " $SELF reconfigure           Run all $SCRIPTS_PATH/install.* files"
+  echo " $SELF regenerate            Regenerate all configuration files"
+  echo " $SELF reconfigure           Run all $SCRIPTS_DIR/install.* files"
   echo " $SELF copy                  Copy and overwrite $SCRIPTS_DIR/root_files/**/* to"
   echo " $SELF --upgrade             Upgrade Craftman"
   echo
@@ -116,7 +117,9 @@ function usage()
   echo " -O, --force-overwrite Force to overwrite generated configuration files at ${APP_DIR}/ and ${SCRIPTS_DIR}/ directories"
   echo " -R, --force-recreate  Force to reconfigure and recreate containers"
   echo
-  plugin_run_all "usage" "before_plugin_usage" "after_plugin_usage"
+  PLUGIN_RUN_BEFORE="before_plugin_usage"
+  PLUGIN_RUN_AFTER="after_plugin_usage"
+  plugin_run_all "usage"
 }
 
 function trace()
@@ -147,23 +150,37 @@ function abort()
 function plugin_run_all()
 {
   RUN_COMMAND=$1
-  BEFORE_PLUGIN=$2
-  AFTER_PLUGIN=$3
   shift
   for PLUGIN in "${PLUGINS[@]}"
   do
-    PLUGIN_COMMAND="${PLUGIN}_${RUN_COMMAND}"
-    trace "Run $PLUGIN_COMMAND $@"
-    if [ "`plugin_command_exists $PLUGIN_COMMAND`" == "true" ]; then
-      if [ "`plugin_command_exists $BEFORE_PLUGIN`" == "true" ]; then
-        $BEFORE_PLUGIN $PLUGIN $@
-      fi
-      $PLUGIN_COMMAND $@
-      if [ "`plugin_command_exists $AFTER_PLUGIN`" == "true" ]; then
-        $AFTER_PLUGIN $PLUGIN $@
-      fi
-    fi
+    PLUGIN_COMMAND="${PLUGIN_PREFIX}${PLUGIN}__${RUN_COMMAND}"
+    internal_plugin_run $PLUGIN_COMMAND $@
   done
+  unset PLUGIN_RUN_BEFORE
+  unset PLUGIN_RUN_AFTER
+}
+
+function internal_plugin_run()
+{
+  PLUGIN_COMMAND=$1
+  shift
+  trace "Run $PLUGIN_COMMAND $@"
+  if [ "`plugin_command_exists $PLUGIN_COMMAND`" == "true" ]; then
+    if [ "`plugin_command_exists $PLUGIN_RUN_BEFORE`" == "true" ]; then
+      $PLUGIN_RUN_BEFORE $PLUGIN $@
+    fi
+    $PLUGIN_COMMAND $@
+    if [ "`plugin_command_exists $PLUGIN_RUN_AFTER`" == "true" ]; then
+      $PLUGIN_RUN_AFTER $PLUGIN $@
+    fi
+  fi
+}
+
+function plugin_run()
+{
+  internal_plugin_run ${PLUGIN_PREFIX}$@
+  unset PLUGIN_RUN_BEFORE
+  unset PLUGIN_RUN_AFTER
 }
 
 function before_plugin_usage()
@@ -712,7 +729,7 @@ while [ "$1" != "" ]; do
       COMMAND="craftman_upgrade"
       break
       ;;
-    run | craft:run)
+    run)
       COMMAND="craft_run"
       break
       ;;
@@ -720,21 +737,21 @@ while [ "$1" != "" ]; do
       COMMAND="craft_ip"
       break
       ;;
-    copy | craft:copy)
+    copy)
       COMMAND="craft_copy"
       break
       ;;
-    open | craft:open)
+    open)
       COMMAND="craft_open"
       break
       ;;
-    admin | craft:admin)
+    admin)
       COMMAND="craft_admin"
       break
       ;;
     *)
       if [[ " ${PLUGINS[@]} " =~ " ${PLUGIN_NAME} " ]]; then
-        COMMAND="${PLUGIN_NAME}_${PLUGIN_COMMAND}"
+        COMMAND="${PLUGIN_PREFIX}${PLUGIN_NAME}__${PLUGIN_COMMAND}"
         if [ "`plugin_command_exists $COMMAND`" == "true" ]; then
           break
         fi

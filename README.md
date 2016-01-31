@@ -5,7 +5,7 @@ It's the main reason `craftman` arise, to help speed set up and start a new Craf
 
 ## Installation
 
-First you'll need to make sure your system has git, docker and docker-compose. 
+First you'll need to make sure your system has git, docker and docker-compose.
 
 Note: `craftman` does not support Windows.
 
@@ -27,11 +27,11 @@ Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
 ## Usage
 
  Output from `craftman -h`:
- 
+
     Craft CMS Manager
-    
+
     Usage: craftman [options] <COMMAND> [args]
-    
+
     Commands:
      craftman install               Install Craft CMS in current directory
      craftman open [path]           Open Craft CMS public site
@@ -41,30 +41,33 @@ Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
      craftman status                Check Craft CMS docker containers status
      craftman ip                    Show Craft CMS docker container IP address
      craftman run                   Open bash or run a command on Craft docker container
-     craftman regenerate            Regenerate all craftman configuration files
-     craftman reconfigure           Run /home/gabriel/Projetos/Gabriel/craftman/scripts/configure
+     craftman regenerate            Regenerate all configuration files
+     craftman reconfigure           Run all scripts/install.* files
      craftman copy                  Copy and overwrite scripts/root_files/**/* to
-                                    Craft container's root / with recursive directories
-    
-     craftman mysql:run             Open mysql client or run a command on MySQL docker container
-     craftman mysql:backup          Create a backup at backups/
-     craftman mysql:restore <file>  Restore a backup from <file> (.sql.gz) to MySQL database
-    
-     craftman heroku:prepare        Generate required files to deploy to Heroku
-    
-     craftman composer:lock         Regenerate composer.lock for your composer.json file
-     craftman composer:prepare      Generate initial composer.json
-    
      craftman --upgrade             Upgrade Craftman
-    
+
     Options:
      -h, --help
      -P, --port            HTTP port to expose on host
-    
+
      -F, --force-all       Force redownload Craft CMS, regenerate and overwrite configurations and recreate containers
      -D, --force-download  Force to download latest Craft CMS from site
      -O, --force-overwrite Force to overwrite generated configuration files at app/ and scripts/ directories
      -R, --force-recreate  Force to reconfigure and recreate containers
+
+    Plugin composer
+     craftman composer:lock         Regenerate composer.lock for your composer.json file
+     craftman composer:prepare      Generate required files to deploy to Heroku
+
+    Plugin heroku
+     craftman heroku:prepare        Generate required files to deploy to Heroku
+
+    Plugin mysql
+     craftman mysql:run             Open mysql client or run a command on MySQL docker container
+     craftman mysql:backup          Create a backup at backups/
+     craftman mysql:restore <file>  Restore a backup from <file> (.sql.gz) to MySQL database
+
+
 
 
 If you want to develop locally a new site using Craft CMS:
@@ -128,7 +131,7 @@ Edit your `[YOUR-PROJECT-DIRECTORY]/.craftman` and add this function:
     	mv "$1.tmp" "$1"
     	rm -f "$1.bak"
     }
-    
+
 There are other hooks:
 
 function configuration_hook()
@@ -142,6 +145,24 @@ function mysql_backup_hook( *[sql-file-path]* )
 function mysql_restore_hook( *[sql-file-path]* )
 
         Use this hook to preprocess .sql before import to MySQL
+
+## Plugins
+
+Create your plugin and put at `~/.craftman/plugins/[your-plugin]/[your-plugin].plugin`
+
+All public functions must start with `pluginname__`
+
+        Eg. function hello__usage()
+
+All private functions name must start with `__pluginname_`
+
+        Eg. function __hello_some_util()
+
+All variables must start with `PLUGINNAME__`
+        Eg. HELLO_WORLD="H"
+
+All hooks must start with "pluginname_" and ends with "_hook"
+        Eg. function hello_world_hook()
 
 ## License
 
@@ -171,11 +192,12 @@ You can try force `-F` to redownload craft, regenerate configurations e recreate
 
 - [x] MySQL backup and restore
 - [x] Heroku support (only using S3 or other cloud asset source)
+- [x] Plugins support
+- [ ] Plugin install and update commands
 - [ ] Advanced composer support (Eg. craftman compose:run install, craftman compose:run update, ...)
 - [ ] Destroy all containers command
 - [ ] Full backup and restore (code directory and database)
 - [ ] OSX support
-- [ ] Plugins support (for code generation like css, js using preprocessors, webpack, gulp, package.json, etc)
 - [ ] Redis support for session cache
 - [ ] Multi locale site structure generation
- 
+
