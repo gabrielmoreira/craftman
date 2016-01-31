@@ -64,7 +64,7 @@ Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
      -F, --force-all       Force redownload Craft CMS, regenerate and overwrite configurations and recreate containers
      -D, --force-download  Force to download latest Craft CMS from site
      -O, --force-overwrite Force to overwrite generated configuration files at app/ and scripts/ directories
-     -R, --force-recreate  Force to recreate containers
+     -R, --force-recreate  Force to reconfigure and recreate containers
 
 
 If you want to develop locally a new site using Craft CMS:
