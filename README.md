@@ -159,9 +159,11 @@ All private functions name must start with `__pluginname_`
         Eg. function __hello_some_util()
 
 All variables must start with `PLUGINNAME__`
-        Eg. HELLO_WORLD="H"
+
+        Eg. HELLO__VAR="Hello World"
 
 All hooks must start with "pluginname_" and ends with "_hook"
+
         Eg. function hello_world_hook()
 
 ## License
