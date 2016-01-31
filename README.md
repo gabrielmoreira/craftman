@@ -89,19 +89,19 @@ If you want to deploy on heroku:
 
 How to access craft container terminal?
 
-    craftman craft:run
+    craftman run
 
 You can also access mysql container running:
 
-    craftman craft:mysql
+    craftman mysql:run
 
 If you need make a mysql backup, run it:
 
-    craftman craft:backup
+    craftman mysql:backup
 
 If you want restore a mysql backup, run it:
 
-    craftman craft:backup BACKUP_FILE_NAME
+    craftman mysql:restore <BACKUP_FILE_NAME>
 
 ## Advanced
 
