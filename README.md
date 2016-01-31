@@ -175,6 +175,7 @@ You can try force `-F` to redownload craft, regenerate configurations e recreate
 - [ ] Destroy all containers command
 - [ ] Full backup and restore (code directory and database)
 - [ ] OSX support
-- [ ] Plugins support
+- [ ] Plugins support (for code generation like css, js using preprocessors, webpack, gulp, package.json, etc)
 - [ ] Redis support for session cache
 - [ ] Multi locale site structure generation
+ 
