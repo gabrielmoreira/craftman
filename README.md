@@ -79,7 +79,7 @@ If you want to deploy on heroku:
 
     # commit your files, and then:
 
-    heroku create -r
+    heroku create
     heroku addons:create cleardb:ignite
     git push heroku master
     heroku open
