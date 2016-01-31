@@ -1,28 +1,29 @@
 #!/bin/sh
+set -e
 PLUGIN_NAME="composer"
 
-function composer__usage()
+composer__usage()
 {
   echo " $SELF composer:lock         Regenerate composer.lock for your composer.json file"
 	echo " $SELF composer:prepare      Generate required files to deploy to Heroku"
 }
 
-function composer__interpolate()
+composer__interpolate()
 {
-  COMPOSER_JSON="$DIR/composer.json"
-  INSTALL_COMPOSER="install.composer"
-  INSTALL_COMPOSER_PATH="$SCRIPTS_PATH/$INSTALL_COMPOSER"
+  COMPOSER__JSON="$DIR/composer.json"
+  COMPOSER__INSTALL="install.composer"
+  COMPOSER__INSTALL_PATH="$SCRIPTS_PATH/$COMPOSER__INSTALL"
 }
 
-function composer__configure()
+composer__configure()
 {
   cd "$SCRIPTS_PATH"
   add_gitignore "composer.phar"
-  if [ -f $INSTALL_COMPOSER_PATH ] && [ "$FORCE_OVERWRITE" == "0" ]; then
-    log "+ Using existent $(basename $INSTALL_COMPOSER_PATH)"
+  if [ -f "$COMPOSER__INSTALL_PATH" ] && [ "$FORCE_OVERWRITE" = "0" ]; then
+    log "+ Using existent $(basename "$COMPOSER__INSTALL_PATH")"
   else
-    log "+ Creating $(basename $INSTALL_COMPOSER_PATH) file"
-    cat > $INSTALL_COMPOSER_PATH <<- EOF
+    log "+ Creating $(basename "$COMPOSER__INSTALL_PATH") file"
+    cat > "$COMPOSER__INSTALL_PATH" <<- EOF
 #!/bin/sh
 set -e
 echo "===> Installing PHP Composer"
@@ -32,18 +33,18 @@ EOF
   fi
 }
 
-function composer__configuration_run()
+composer__configuration_run()
 {
-  run_script_once "$INSTALL_COMPOSER"
+  run_script_once "$COMPOSER__INSTALL"
 }
 
-function composer__prepare()
+composer__prepare()
 {
   log "Preparing composer.json"
   __composer__create_json
 }
 
-function composer__lock()
+composer__lock()
 {
   [ -f "$DIR/composer.json" ] || abort "composer.json is required"
   log "Generating composer.lock"
@@ -61,13 +62,13 @@ EOF
   rm -f "$DIR/composer.lock.bak"
 }
 
-function __composer__create_json()
+__composer__create_json()
 {
-  if [ -f $COMPOSER_JSON ] && [ "$FORCE_OVERWRITE" == "0" ]; then
-    log "+ Using existent $(basename $COMPOSER_JSON)"
+  if [ -f "$COMPOSER__JSON" ] && [ "$FORCE_OVERWRITE" = "0" ]; then
+    log "+ Using existent $(basename "$COMPOSER__JSON")"
   else
-    log "+ Creating $(basename $COMPOSER_JSON) file"
-    cat > $COMPOSER_JSON <<- EOF
+    log "+ Creating $(basename "$COMPOSER__JSON") file"
+    cat > "$COMPOSER__JSON" <<- EOF
 {
   "require": {
     "ext-mbstring": "*",

@@ -3,24 +3,24 @@ set -e
 #
 # Craft CMS manager
 #
-declare PLUGINS=()
+PLUGINS=()
 
-function initialize()
+initialize()
 {
   # Base craftman configs
-  SELF=$(basename $(readlink -f $0))
-  ROOT=$(dirname $(readlink -f $0))
-  DIR=`find_closest ".craftman"`
+  SELF="$(basename "$(readlink -f "$0")")"
+  ROOT="$(dirname "$(readlink -f "$0")")"
+  DIR=$(find_closest ".craftman")
   if [ -z "$CRAFTMAN_DIR" ]; then
     CRAFTMAN_DIR="$HOME/.craftman"
   fi
   PLUGIN_PREFIX=""
   PLUGINS_DIR="$CRAFTMAN_DIR/plugins"
   PLUGINS_CORE_DIR="$ROOT/plugins"
-  [ "$DIR" == "" ] && DIR="."
-  DIR="$(readlink -f $DIR)"
-  REAL_NAME=$(basename $DIR)
-  NAME=$(echo "$REAL_NAME" | tr '[:upper:]' '[:lower:]')
+  [ "$DIR" = "" ] && DIR="."
+  DIR="$(readlink -f "$DIR")"
+  REAL_NAME="$(basename "$DIR")"
+  NAME="$(echo "$REAL_NAME" | tr '[:upper:]' '[:lower:]')"
 
   # Default craftman configurations
   DOCKER_PHP_IMAGE="php:5-apache"
@@ -31,13 +31,14 @@ function initialize()
     - MYSQL_ALLOW_EMPTY_PASSWORD=yes
 SETVAR
 )
+  DOCKER_MYSQL_DATA_VOLUME="/var/lib/mysql"
   DOCKER_CRAFT_VOLUMES=""
   DOCKER_CRAFT_ENV=$(cat <<SETVAR
     - CRAFT_DEVMODE=true
 SETVAR
 )
   CRAFT_DOWNLOAD_URL="https://craftcms.com/latest.zip?accept_license=yes"
-  CRAFT_ZIPNAME="craft-`date +%Y-%m`.zip"
+  CRAFT_ZIPNAME="craft-$(date "+%Y-%m").zip"
   APP_DIR="app"
   BACKUP_DIR="backups"
   SCRIPTS_DIR="scripts"
@@ -57,9 +58,10 @@ SETVAR
   load_plugins
 
   # Load custom variables and hooks
-  if [ -f $DIR/.craftman ]; then
+  if [ -f "$DIR/.craftman" ]; then
     debug "Loading $DIR/.craftman"
-    . $DIR/.craftman
+    # shellcheck source=/dev/null
+    . "$DIR/.craftman"
   fi
 
   # Customize any variable
@@ -67,15 +69,14 @@ SETVAR
   interpolate
 
   # Create default directories
-  mkdir -p $CACHE
-  mkdir -p $PLUGINS_DIR
+  mkdir -p "$CACHE"
+  mkdir -p "$PLUGINS_DIR"
 
   plugin_run_all "initialize"
 }
 
-function interpolate()
+interpolate()
 {
-  # Interpolation
   APP_PATH="$DIR/$APP_DIR"
   BACKUP_PATH="$DIR/$BACKUP_DIR"
   SCRIPTS_PATH="$DIR/$SCRIPTS_DIR"
@@ -86,11 +87,12 @@ function interpolate()
   CACHE="$CRAFTMAN_DIR/cache"
   PHP_INI_PATH="$SCRIPTS_PATH/root_files/usr/local/etc/php/php.ini"
   CRAFT_ZIP="$CACHE/$CRAFT_ZIPNAME"
-  PROCFILE="$DIR/Procfile"
+
+  # Run all interpolate functions from plugins
   plugin_run_all "interpolate"
 }
 
-function usage()
+usage()
 {
   echo "Craft CMS Manager"
   echo
@@ -124,93 +126,89 @@ function usage()
   plugin_run_all "usage"
 }
 
-function trace()
+trace()
 {
   if [ "$TRACE" != "" ]; then
-    echo "***> $@"
+    echo "***> $*"
   fi
 }
 
-function debug()
+debug()
 {
   if [ "$DEBUG" != "" ]; then
-    echo "---> $@"
+    echo "---> $*"
   fi
 }
 
-function log()
+log()
 {
-    echo "===> $@"
+    echo "===> $*"
 }
 
-function abort()
+abort()
 {
   >&2 echo "[ERROR] $1"
   exit ${2:1}
 }
 
-function plugin_run_all()
+plugin_run_all()
 {
   RUN_COMMAND=$1
   shift
   for PLUGIN in "${PLUGINS[@]}"
   do
     PLUGIN_COMMAND="${PLUGIN_PREFIX}${PLUGIN}__${RUN_COMMAND}"
-    internal_plugin_run $PLUGIN_COMMAND $@
+    internal_plugin_run "$PLUGIN_COMMAND" "$@"
   done
   unset PLUGIN_RUN_BEFORE
   unset PLUGIN_RUN_AFTER
 }
 
-function internal_plugin_run()
+internal_plugin_run()
 {
   PLUGIN_COMMAND=$1
   shift
-  trace "Run $PLUGIN_COMMAND $@"
-  if [ "`plugin_command_exists $PLUGIN_COMMAND`" == "true" ]; then
-    if [ "`plugin_command_exists $PLUGIN_RUN_BEFORE`" == "true" ]; then
-      $PLUGIN_RUN_BEFORE $PLUGIN $@
+  trace "Run $PLUGIN_COMMAND $*"
+  if [ "$(plugin_command_exists "$PLUGIN_COMMAND")" = "true" ]; then
+    if [ "$(plugin_command_exists "$PLUGIN_RUN_BEFORE")" = "true" ]; then
+      $PLUGIN_RUN_BEFORE "$PLUGIN" "$@"
     fi
-    $PLUGIN_COMMAND $@
-    if [ "`plugin_command_exists $PLUGIN_RUN_AFTER`" == "true" ]; then
-      $PLUGIN_RUN_AFTER $PLUGIN $@
+    $PLUGIN_COMMAND "$@"
+    if [ "$(plugin_command_exists "$PLUGIN_RUN_AFTER")" = "true" ]; then
+      $PLUGIN_RUN_AFTER "$PLUGIN" "$@"
     fi
   fi
 }
 
-function plugin_run()
+plugin_run()
 {
-  internal_plugin_run ${PLUGIN_PREFIX}$@
+  # shellcheck disable=SC2145
+  internal_plugin_run "${PLUGIN_PREFIX}$@"
   unset PLUGIN_RUN_BEFORE
   unset PLUGIN_RUN_AFTER
 }
 
-function before_plugin_usage()
+before_plugin_usage()
 {
   echo "Plugin $1"
 }
 
 
-function after_plugin_usage()
+after_plugin_usage()
 {
   echo
 }
 
 
-function plugin_install()
-{
-  :
-}
-
-function plugin_command_exists()
+plugin_command_exists()
 {
   PLUGIN_COMMAND="$1"
-  if [ -n "$(type -t $PLUGIN_COMMAND)" ] && [ "$(type -t $PLUGIN_COMMAND)" = function ]; then
+  if [ -n "$(type -t "$PLUGIN_COMMAND")" ] && [ "$(type -t "$PLUGIN_COMMAND")" = "function" ]; then
     echo "true"
   fi
 }
 
-function load_plugins()
+load_plugins()
 {
   # Load plugins
   debug "Loading custom plugins from $PLUGINS_DIR"
@@ -220,64 +218,65 @@ function load_plugins()
   IFS=$'\n' PLUGINS=($(sort <<<"${PLUGINS[*]}"))
 }
 
-function load_plugins_from_directory()
+load_plugins_from_directory()
 {
   if [ -d "$1" ]; then
-    find "$1" -type f -name '*.plugin' > $CACHE/craftman_plugins
-    while read PLUGIN_FILE;
+    find "$1" -type f -name '*.plugin' > "$CACHE/craftman_plugins"
+    while read -r PLUGIN_FILE;
     do
        debug "+  Loading plugin $PLUGIN_FILE"
        unset PLUGIN_NAME
+       # shellcheck source=/dev/null
        . "$PLUGIN_FILE"
        [ "$PLUGIN_NAME" != "" ] || abort "Plugin name not defined at $PLUGIN_FILE"
-       PLUGINS+=($PLUGIN_NAME)
-       debug "+  Plugin added " + $PLUGIN_NAME
-    done < $CACHE/craftman_plugins
-    debug "All plugins: ${PLUGINS[@]}"
+       PLUGINS+=("$PLUGIN_NAME")
+       debug "+  Plugin added $PLUGIN_NAME"
+    done < "$CACHE/craftman_plugins"
+    debug "All plugins: ${PLUGINS[*]}"
   fi
 }
 
-function download()
+download()
 {
   log "Preparing to download Craft CMS"
-  if [ -f $CRAFT_ZIP ] && [ "$FORCE_DOWNLOAD" == "0" ]; then
+  if [ -f "$CRAFT_ZIP" ] && [ "$FORCE_DOWNLOAD" == "0" ]; then
     log "+  Using Craft CMS from local cache"
   else
     log "+  Downloading Craft CMS from $CRAFT_DOWNLOAD_URL"
-    curl -o $CRAFT_ZIP.partial --retry 3 -0 -L -C - $CRAFT_DOWNLOAD_URL
-    rm -Rf $CRAFT_ZIP
-    mv -f $CRAFT_ZIP.partial $CRAFT_ZIP
+    curl -o "$CRAFT_ZIP.partial" --retry 3 -0 -L -C - "$CRAFT_DOWNLOAD_URL"
+    rm -Rf "$CRAFT_ZIP"
+    mv -f "$CRAFT_ZIP.partial" "$CRAFT_ZIP"
   fi
 }
 
-function unpack()
+unpack()
 {
   log "Unpacking Craft CMS"
-  mkdir -p $APP_PATH
-  if [ "$(ls -A $APP_PATH)" ] && [ "$FORCE_OVERWRITE" == "0" ]; then
+  mkdir -p "$APP_PATH"
+  if [ "$(ls -A "$APP_PATH")" ] && [ "$FORCE_OVERWRITE" == "0" ]; then
     abort "+  $APP_PATH is not empty"
   else
     log "+  Unzipping craft.zip to $APP_PATH"
-    unzip -qo $CRAFT_ZIP -d $APP_PATH
-    rm -f $CRAFT_DB_CONFIG_PATH
-    rm -f $CRAFT_GENERAL_CONFIG_PATH
+    unzip -qo "$CRAFT_ZIP" -d "$APP_PATH"
+    rm -f "$CRAFT_DB_CONFIG_PATH"
+    rm -f "$CRAFT_GENERAL_CONFIG_PATH"
     if [ -d "$APP_PATH/html" ]; then
       log "+  Directory already exist $APP_PATH/html"
     else
-      mkdir $APP_PATH/html
+      mkdir "$APP_PATH/html"
     fi
-    mv -f $APP_PATH/public/* $APP_PATH/html
+    mv -f "$APP_PATH/public/"* "$APP_PATH/html"
     if [ ! -f "$APP_PATH/html/.htaccess" ]; then
-      mv $APP_PATH/html/htaccess $APP_PATH/html/.htaccess
+      mv "$APP_PATH/html/htaccess" "$APP_PATH/html/.htaccess"
     fi
-    rm -Rf $APP_PATH/public
+    rm -Rf "$APP_PATH/public"
   fi
 }
 
-function configure()
+configure()
 {
   log "Configure Craft CMS"
-  if [ "$FORCE_RECREATE" == "1" ]; then
+  if [ "$FORCE_RECREATE" = "1" ]; then
     clear_script_flag "$INSTALL_DEPENDENCIES"
   fi
   create_install_script
@@ -288,17 +287,17 @@ function configure()
   plugin_run_all "configure"
 }
 
-function create_docker_compose_file()
+create_docker_compose_file()
 {
-  if [ -f $COMPOSE_FILE ] && [ "$FORCE_OVERWRITE" == "0" ]; then
-    log "+  Using existent $(basename $COMPOSE_FILE)"
+  if [ -f "$COMPOSE_FILE" ] && [ "$FORCE_OVERWRITE" = "0" ]; then
+    log "+  Using existent $(basename "$COMPOSE_FILE")"
   else
-    log "+  Creating $(basename $COMPOSE_FILE) file"
+    log "+  Creating $(basename "$COMPOSE_FILE") file"
 
-if [ ! "$CRAFT_HTTP_PORT" == "" ]; then
+if [ ! "$CRAFT_HTTP_PORT" = "" ]; then
   COMPOSE_PORTS="  ports:"$'\n'"    - \"$CRAFT_HTTP_PORT:80\""
 fi
-    cat > $COMPOSE_FILE <<- EOF
+    cat > "$COMPOSE_FILE" <<- EOF
 craft:
   image: "$DOCKER_PHP_IMAGE"
   links:
@@ -320,21 +319,21 @@ $DOCKER_MYSQL_ENV
 mysql_data:
   image: "$DOCKER_DATA_IMAGE"
   volumes:
-    - "/var/lib/mysql"
+    - "$DOCKER_MYSQL_DATA_VOLUME"
 EOF
   fi
 }
 
-function create_install_script()
+create_install_script()
 {
-  mkdir -p $SCRIPTS_PATH
-  cd $SCRIPTS_PATH
+  mkdir -p "$SCRIPTS_PATH"
+  cd "$SCRIPTS_PATH"
   add_gitignore "*.ok"
-  if [ -f $INSTALL_DEPENDENCIES_PATH ] && [ "$FORCE_OVERWRITE" == "0" ]; then
-    log "+  Using existent $(basename $INSTALL_DEPENDENCIES_PATH)"
+  if [ -f "$INSTALL_DEPENDENCIES_PATH" ] && [ "$FORCE_OVERWRITE" = "0" ]; then
+    log "+  Using existent $(basename "$INSTALL_DEPENDENCIES_PATH")"
   else
-    log "+  Creating $(basename $INSTALL_DEPENDENCIES_PATH) file"
-    cat > $INSTALL_DEPENDENCIES_PATH <<- EOF
+    log "+  Creating $(basename "$INSTALL_DEPENDENCIES_PATH") file"
+    cat > "$INSTALL_DEPENDENCIES_PATH" <<- EOF
 #!/bin/sh
 set -e
 echo "===> Installing dependencies"
@@ -368,13 +367,13 @@ EOF
   fi
 }
 
-function create_craft_db_config()
+create_craft_db_config()
 {
-  if [ -f $CRAFT_DB_CONFIG_PATH ] && [ "$FORCE_OVERWRITE" == "0" ]; then
-    log "+  Using existent $(basename $CRAFT_DB_CONFIG_PATH)"
+  if [ -f "$CRAFT_DB_CONFIG_PATH" ] && [ "$FORCE_OVERWRITE" = "0" ]; then
+    log "+  Using existent $(basename "$CRAFT_DB_CONFIG_PATH")"
   else
-    log "+  Creating $(basename $CRAFT_DB_CONFIG_PATH) file"
-    cat > $CRAFT_DB_CONFIG_PATH <<- EOF
+    log "+  Creating $(basename "$CRAFT_DB_CONFIG_PATH") file"
+    cat > "$CRAFT_DB_CONFIG_PATH" <<- EOF
 <?php
 /**
  * Database Configuration
@@ -401,13 +400,13 @@ EOF
   fi
 }
 
-function create_craft_general_config()
+create_craft_general_config()
 {
-  if [ -f $CRAFT_GENERAL_CONFIG_PATH ] && [ "$FORCE_OVERWRITE" == "0" ]; then
-    log "+  Using existent $(basename $CRAFT_GENERAL_CONFIG_PATH)"
+  if [ -f "$CRAFT_GENERAL_CONFIG_PATH" ] && [ "$FORCE_OVERWRITE" = "0" ]; then
+    log "+  Using existent $(basename "$CRAFT_GENERAL_CONFIG_PATH")"
   else
-    log "+  Creating $(basename $CRAFT_GENERAL_CONFIG_PATH) file"
-    cat > $CRAFT_GENERAL_CONFIG_PATH <<- EOF
+    log "+  Creating $(basename "$CRAFT_GENERAL_CONFIG_PATH") file"
+    cat > "$CRAFT_GENERAL_CONFIG_PATH" <<- EOF
 <?php
 /**
  * General Configuration
@@ -426,14 +425,14 @@ EOF
   fi
 }
 
-function create_php_ini()
+create_php_ini()
 {
-  mkdir -p $(dirname "$PHP_INI_PATH")
-  if [ -f $PHP_INI_PATH ] && [ "$FORCE_OVERWRITE" == "0" ]; then
-    log "+  Using existent $(basename $PHP_INI_PATH)"
+  mkdir -p "$(dirname "$PHP_INI_PATH")"
+  if [ -f "$PHP_INI_PATH" ] && [ "$FORCE_OVERWRITE" = "0" ]; then
+    log "+  Using existent $(basename "$PHP_INI_PATH")"
   else
-    log "+  Creating $(basename $PHP_INI_PATH) file"
-    cat > $PHP_INI_PATH <<- EOF
+    log "+  Creating $(basename "$PHP_INI_PATH") file"
+    cat > "$PHP_INI_PATH" <<- EOF
 [PHP]
 upload_max_filesize = 200M
 post_max_size = 210M
@@ -443,36 +442,36 @@ EOF
   fi
 }
 
-function start()
+start()
 {
   log "Starting Craft CMS containers"
   UP_ARGS=""
-  [ "$FORCE_RECREATE" == "1" ] && UP_ARGS="--force-recreate"
+  [ "$FORCE_RECREATE" = "1" ] && UP_ARGS="--force-recreate"
 
   docker_compose up $UP_ARGS -d
   pre_restart
 }
 
-function status()
+status()
 {
   log "Craft CMS containers status"
   docker_compose ps | grep -v "mysql_data"
 }
 
-function stop()
+stop()
 {
   log "Stopping Craft CMS containers"
   docker_compose stop
 }
 
-function restart()
+restart()
 {
   log "Restarting Craft CMS containers"
   stop
   start
 }
 
-function install()
+install()
 {
   touch "$DIR/.craftman"
   log "Installing Craft..."
@@ -492,20 +491,20 @@ function install()
   craft_admin
 }
 
-function reconfigure()
+reconfigure()
 {
   FORCE_RECREATE="1"
   configure
   pre_restart
 }
 
-function regenerate()
+regenerate()
 {
   FORCE_OVERWRITE="1"
   configure
 }
 
-function craft_start()
+craft_start()
 {
   start
 
@@ -520,7 +519,7 @@ function craft_start()
   craft_admin
 }
 
-function pre_restart()
+pre_restart()
 {
   craft_copy
   configuration_run
@@ -528,13 +527,13 @@ function pre_restart()
   docker-compose restart craft
 }
 
-function configuration_run()
+configuration_run()
 {
   run_script_once "$INSTALL_DEPENDENCIES"
   plugin_run_all "configuration_run"
 }
 
-function run_script_once()
+run_script_once()
 {
   FILE="$SCRIPTS_PATH/$1"
   if [ -f "$FILE.ok" ]; then
@@ -546,24 +545,24 @@ function run_script_once()
   fi
 }
 
-function clear_script_flag()
+clear_script_flag()
 {
   rm -f "$SCRIPTS_PATH/$1.ok"
 }
 
-function craft_run()
+craft_run()
 {
-  CMD="${@:-bash}"
-  docker exec -i -t $(craft_container) sh -i -c "$CMD"
+  CMD="${*:-bash}"
+  docker exec -i -t "$(craft_container)" sh -i -c "$CMD"
 }
 
-function craft_exec()
+craft_exec()
 {
-  CMD="${@:-echo}"
-  docker exec -i -t $(craft_container) sh -c "$CMD"
+  CMD="${*:-echo}"
+  docker exec -i -t "$(craft_container)" sh -c "$CMD"
 }
 
-function craft_copy()
+craft_copy()
 {
   log "Copying all files and directories from '$SCRIPTS_PATH/root_files' to craft container root '/'.'"
   if [ -d "$SCRIPTS_PATH/root_files" ]; then
@@ -574,63 +573,63 @@ function craft_copy()
   fi
 }
 
-function craft_open()
+craft_open()
 {
-  URL=`docker-compose port craft 80`
-  if [ "$URL" == "" ]; then
+  URL="$(docker-compose port craft 80)"
+  if [ "$URL" = "" ]; then
     URL=$(craft_ip)
   fi
-  browser_open http://${URL}$1
+  browser_open "http://${URL}$1"
 }
 
-function craft_admin()
+craft_admin()
 {
   craft_open "/admin"
 }
 
-function craft_container()
+craft_container()
 {
-  echo $(docker_compose ps | grep craft | cut -f 1 -d ' ')
+  docker_compose ps | grep craft | cut -f 1 -d ' '
 }
 
-function craft_ip()
+craft_ip()
 {
   CONTAINER=$(craft_container)
-  echo $(docker inspect --format '{{ .NetworkSettings.IPAddress }}' $CONTAINER)
+  docker inspect --format '{{ .NetworkSettings.IPAddress }}' "$CONTAINER"
 }
 
 
-function craftman_upgrade()
+craftman_upgrade()
 {
-  if [ -d $ROOT/.git ]; then
-    cd $ROOT
+  if [ -d "$ROOT/.git" ]; then
+    cd "$ROOT"
     git pull
   else
     log "Are you sure craftman was installed in $ROOT? Try reinstalling running\n curl -o- https://raw.githubusercontent.com/gabrielmoreira/craftman/master/craftman_install | sh"
   fi
 }
 
-function docker_compose()
+docker_compose()
 {
-  docker-compose -f "$COMPOSE_FILE" $@
+  docker-compose -f "$COMPOSE_FILE" "$@"
 }
 
-function browser_open()
+browser_open()
 {
   URL=$1
   log "Opening $1 in your browser"
-  [[ -x $BROWSER ]] && exec "$BROWSER" "$1" > /dev/null 2>&1
+  [ -x "$BROWSER" ] && exec "$BROWSER" "$1" > /dev/null 2>&1
   path=$(which xdg-open || which gnome-open) && exec "$path" "$1" > /dev/null 2>&1
   abort "Can't find a browser"
 }
 
-function find_closest()
+find_closest()
 {
   filename="$1"
   search_dir="."
   shift 1
   set +e
-  while [[ "$search_dir" != "/" ]];
+  while [ "$search_dir" != "/" ];
   do
       FIND=$(find "$search_dir" -maxdepth 1 -mindepth 1 -name "$filename")
       [ "$FIND" != "" ] && break
@@ -641,7 +640,7 @@ function find_closest()
   [ -f "$search_dir/$filename" ] && echo "$search_dir" || echo ""
 }
 
-function add_gitignore()
+add_gitignore()
 {
   touch ".gitignore"
   grep -q "$1" ".gitignore" || (echo "$1" >> ".gitignore")
@@ -653,13 +652,13 @@ function add_gitignore()
 #  Override hooks at $DIR/.craftman shellscript
 
 # Hook for change variables/configurations
-function configuration_hook()
+configuration_hook()
 {
   :
 }
 
 # Hook after craft start
-function pre_restart_hook()
+pre_restart_hook()
 {
   :
 }
@@ -673,10 +672,10 @@ initialize
 
 # Parse arguments
 while [ "$1" != "" ]; do
-  PARAM=`echo $1 | awk -F= '{print $1}'`
-  VALUE=`echo $1 | awk -F= '{print $2}'`
-  PLUGIN_NAME=`echo $1 | awk -F: '{print $1}'`
-  PLUGIN_COMMAND=`echo $1 | awk -F: '{print $2}'`
+  PARAM="$(echo "$1" | awk -F= '{print $1}')"
+  VALUE="$(echo "$1" | awk -F= '{print $2}')"
+  PLUGIN_NAME="$(echo "$1" | awk -F: '{print $1}')"
+  PLUGIN_COMMAND="$(echo "$1" | awk -F: '{print $2}')"
   case $PARAM in
     -h | --help)
       usage
@@ -752,9 +751,9 @@ while [ "$1" != "" ]; do
       break
       ;;
     *)
-      if [[ " ${PLUGINS[@]} " =~ " ${PLUGIN_NAME} " ]]; then
+      if [[ " ${PLUGINS[@]} " =~ " $PLUGIN_NAME " ]]; then
         COMMAND="${PLUGIN_PREFIX}${PLUGIN_NAME}__${PLUGIN_COMMAND}"
-        if [ "`plugin_command_exists $COMMAND`" == "true" ]; then
+        if [ "$(plugin_command_exists "$COMMAND")" = "true" ]; then
           break
         fi
       fi
