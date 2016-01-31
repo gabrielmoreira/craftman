@@ -104,7 +104,7 @@ function usage()
   echo " -F, --force-all       Force redownload Craft CMS, regenerate and overwrite configurations and recreate containers"
   echo " -D, --force-download  Force to download latest Craft CMS from site"
   echo " -O, --force-overwrite Force to overwrite generated configuration files at ${APP_DIR}/ and ${SCRIPTS_DIR}/ directories"
-  echo " -R, --force-recreate  Force to recreate containers"
+  echo " -R, --force-recreate  Force to reconfigure and recreate containers"
   echo
 }
 
