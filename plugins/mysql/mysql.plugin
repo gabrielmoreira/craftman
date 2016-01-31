@@ -1,0 +1,62 @@
+#!/bin/sh
+PLUGIN_NAME="mysql"
+
+function mysql_usage()
+{
+  echo " $SELF mysql:run             Open mysql client or run a command on MySQL docker container"
+  echo " $SELF mysql:backup          Create a backup at ${BACKUP_DIR}/"
+  echo " $SELF mysql:restore <file>  Restore a backup from <file> (.sql.gz) to MySQL database"
+}
+
+function mysql_run()
+{
+  CMD="${@:-TERM=dumb mysql}"
+  docker exec -i -t $(mysql_container) sh -i -c "$CMD"
+}
+
+function mysql_backup()
+{
+  mkdir -p $BACKUP_PATH
+  BACKUP_FILE=$BACKUP_PATH/${NAME}_`date +%Y-%m-%d_%H-%M`
+  log "Dumping from MySQL"
+  mysql_run mysqldump craft > "$BACKUP_FILE.sql"
+  mysql_backup_hook "$BACKUP_FILE.sql"
+  log "Gziping backup file"
+  gzip -f $BACKUP_FILE.sql
+  log "Backup file created at $BACKUP_FILE.sql.gz"
+}
+
+function mysql_container()
+{
+  echo $(docker_compose ps | grep mysqld | cut -f 1 -d ' ')
+}
+
+function mysql_restore()
+{
+  [ "$1" == "" ] && abort "File is required <file.sql.gz>"
+  log "Restoring backup $1"
+  RESTORE_NAME="`basename $1`.sql"
+  RESTORE_FILE="/tmp/$RESTORE_NAME"
+  gzip -d -c "$1" > "$RESTORE_FILE"
+  mysql_restore_hook "$RESTORE_FILE"
+  log "Copy backup file to container /tmp"
+  docker cp $RESTORE_FILE $(mysql_container):/tmp
+  log "Import backup file to MySQL"
+  mysql_run "mysql craft -e 'source $RESTORE_FILE'"
+  log "Removing all temporary files"
+  rm -f  $RESTORE_FILE
+  mysql_run "rm -f $RESTORE_FILE"
+  log "Backup restore completed"
+}
+
+# Hook for process sql backup file
+function mysql_backup_hook()
+{
+  :
+}
+
+# Hook for process sql backup file
+function mysql_restore_hook()
+{
+  :
+}

@@ -1,0 +1,27 @@
+#!/bin/sh
+PLUGIN_NAME="heroku"
+
+function heroku_usage()
+{
+	echo " $SELF heroku:prepare        Generate required files to deploy to Heroku"
+}
+
+function heroku_create_procfile()
+{
+  if [ -f $PROCFILE ] && [ "$FORCE_OVERWRITE" == "0" ]; then
+    log "+ Using existent $(basename $PROCFILE)"
+  else
+    log "+ Creating $(basename $PROCFILE) file"
+    cat > $PROCFILE <<- EOF
+web: vendor/bin/heroku-php-apache2 -i scripts/root_files/usr/local/etc/php/php.ini app/html
+EOF
+  fi
+}
+
+function heroku_prepare()
+{
+  log "Preparing Craft CMS for heroku deploy"
+  heroku_create_procfile
+  composer_create_json
+  composer_lock
+}
