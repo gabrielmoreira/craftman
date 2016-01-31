@@ -166,3 +166,15 @@ If you try to install craft and the installation fails, you might get an error w
 You can try force `-F` to redownload craft, regenerate configurations e recreate containers, using:
 
     craftman -F -P=8080 install
+
+## ROADMAP
+
+- [x] MySQL backup and restore
+- [x] Heroku support (only using S3 or other cloud asset source)
+- [ ] Advanced composer support (Eg. craftman compose:run install, craftman compose:run update, ...)
+- [ ] Destroy all containers command
+- [ ] Full backup and restore (code directory and database)
+- [ ] OSX support
+- [ ] Plugins support
+- [ ] Redis support for session cache
+- [ ] Multi locale site structure generation
