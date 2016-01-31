@@ -215,6 +215,8 @@ set -e
 echo "===> Starting dependencies installation"
 chown -R :$WWW_GROUP /var/www
 chmod -R $www_PERMISSIONS /var/www
+cd /scripts
+touch .gitignore
 if [ -f /scripts/$INSTALL_DEPS.ok ]; then
   echo "===> Dependencies already installed"
 else
@@ -235,12 +237,14 @@ else
   docker-php-ext-enable imagick
 
   # Install PHP composer
-  cd /scripts
   curl -sS https://getcomposer.org/installer | php
+  grep -q "composer.phar" ".gitignore" || (echo "composer.phar" >> .gitignore)
 
   # Other configurations
   a2enmod rewrite setenvif deflate headers filter
-  touch /scripts/$INSTALL_DEPS.ok
+  touch $INSTALL_DEPS.ok
+  grep -q "$INSTALL_DEPS.ok" ".gitignore" || (echo "$INSTALL_DEPS.ok" >> .gitignore)
+
   echo "===> Dependencies installed"
 fi
 EOF
@@ -335,8 +339,6 @@ function start()
   docker_compose up $UP_ARGS -d
   dependencies_install
 }
-
-
 
 function status()
 {
