@@ -82,7 +82,7 @@ function usage()
   echo " $SCRIPT_NAME ip                    Show Craft CMS docker container IP address"
   echo " $SCRIPT_NAME run                   Open bash or run a command on Craft docker container"
   echo " $SCRIPT_NAME regenerate            Regenerate all craftman configuration files"
-  echo " $SCRIPT_NAME reconfigure           Run $RECONFIGURE_PATH (use -F to force reinstallation)"
+  echo " $SCRIPT_NAME reconfigure           Run $RECONFIGURE_PATH"
   echo " $SCRIPT_NAME copy                  Copy and overwrite $SCRIPTS_DIR/root_files/**/* to"
   echo "                                Craft container's root / with recursive directories"
   echo
@@ -166,7 +166,10 @@ function unpack()
 function configure()
 {
   log "Configure Craft CMS"
-  create_reconfigure_script
+  if [ "$FORCE_RECREATE" == "1" ]; then
+    rm -f $SCRIPTS_PATH/$RECONFIGURE.ok
+  fi
+  create_configure_script
   create_craft_db_config
   create_craft_general_config
   create_docker_compose_file
@@ -207,7 +210,7 @@ EOF
   fi
 }
 
-function create_reconfigure_script()
+function create_configure_script()
 {
   mkdir -p $SCRIPTS_PATH
   if [ -f $RECONFIGURE_PATH ] && [ "$FORCE_OVERWRITE" == "0" ]; then
@@ -256,9 +259,6 @@ chmod -R $www_PERMISSIONS /var/www
 EOF
   fi
   chmod +x $RECONFIGURE_PATH
-  if [ "$FORCE_RECREATE" == "1" ]; then
-    rm -f /scripts/$RECONFIGURE.ok
-  fi
 }
 
 function create_craft_db_config()
@@ -385,6 +385,19 @@ function install()
   craft_admin
 }
 
+function reconfigure()
+{
+  FORCE_RECREATE="1"
+  configure
+  dependencies_install
+}
+
+function regenerate()
+{
+  FORCE_OVERWRITE="1"
+  configure
+}
+
 function craft_start()
 {
   start
@@ -402,7 +415,7 @@ function craft_start()
 
 function dependencies_install()
 {
-  craft_run "/scripts/$RECONFIGURE"
+  craft_exec "/scripts/$RECONFIGURE"
   craft_copy
   post_install_hook
   docker-compose restart craft
@@ -414,11 +427,17 @@ function craft_run()
   docker exec -i -t $(craft_container) sh -i -c "$CMD"
 }
 
+function craft_exec()
+{
+  CMD="${@:-echo}"
+  docker exec -i -t $(craft_container) sh -c "$CMD"
+}
+
 function craft_copy()
 {
   log "Copying all files and directories from '$SCRIPTS_PATH/root_files' to craft container root '/'.'"
   if [ -d "$SCRIPTS_PATH/root_files" ]; then
-    craft_run "rsync -hPprvs /scripts/root_files/ /"
+    craft_exec "rsync -hPprvs /scripts/root_files/ /"
     log "All configuration files synced"
   else
     log "Please, check if '$SCRIPTS_PATH/root_files' directory exist"
@@ -556,18 +575,12 @@ function composer_lock()
 !.gitignore
 EOF
   docker cp "$DIR/composer.json" "$(craft_container):/scripts/composer"
-  craft_run "cd /scripts/composer && /scripts/composer.phar install && /scripts/composer.phar update"
+  craft_exec "cd /scripts/composer && /scripts/composer.phar install && /scripts/composer.phar update"
   if [ -f "$DIR/composer.lock" ]; then
     mv -f "$DIR/composer.lock" "$DIR/composer.lock.bak"
   fi
   cp "$SCRIPTS_PATH/composer/composer.lock" "$DIR/composer.lock"
   rm -f "$DIR/composer.lock.bak"
-}
-
-function regenerate()
-{
-  configure
-  dependencies_install
 }
 
 function docker_compose()
@@ -668,6 +681,14 @@ while [ "$1" != "" ]; do
       COMMAND="install"
       break
       ;;
+    reconfigure)
+      COMMAND="dependencies_install"
+      break
+      ;;
+    regenerate)
+      COMMAND="regenerate"
+      break
+      ;;
     start)
       COMMAND="craft_start"
       break
@@ -720,10 +741,6 @@ while [ "$1" != "" ]; do
       COMMAND="mysql_restore"
       break
       ;;
-    reconfigure)
-      COMMAND="dependencies_install"
-      break
-      ;;
     composer:prepare)
       COMMAND="composer_prepare"
       break
@@ -734,11 +751,6 @@ while [ "$1" != "" ]; do
       ;;
     heroku:prepare)
       COMMAND="heroku_prepare"
-      break
-      ;;
-    regenerate)
-      FORCE_OVERWRITE="1"
-      COMMAND="regenerate"
       break
       ;;
     *)
