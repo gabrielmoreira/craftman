@@ -79,8 +79,9 @@ If you want to deploy on heroku:
 
     # commit your files, and then:
 
-    heroku create
+    heroku create -r
     heroku addons:create cleardb:ignite
+    git push heroku
     heroku open
 
 How to access craft container terminal?
