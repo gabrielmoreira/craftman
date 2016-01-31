@@ -28,7 +28,7 @@ Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
 
  Output from `craftman -h`:
  
-    Craft CMS manager
+    Craft CMS Manager
     
     Usage: craftman [options] <COMMAND> [args]
     
