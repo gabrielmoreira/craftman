@@ -81,7 +81,7 @@ If you want to deploy on heroku:
 
     heroku create -r
     heroku addons:create cleardb:ignite
-    git push heroku
+    git push heroku master
     heroku open
 
 How to access craft container terminal?
