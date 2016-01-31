@@ -67,7 +67,7 @@ function interpolate()
 
 function usage()
 {
-  echo "Craft CMS manager"
+  echo "Craft CMS Manager"
   echo
   echo "Usage: $SCRIPT_NAME [options] <COMMAND> [args]"
   echo
