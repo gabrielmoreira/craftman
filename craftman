@@ -62,6 +62,10 @@ SETVAR
   CM_FORCE_OVERWRITE="0"
   CM_FORCE_RECREATE="0"
 
+  # Create default directories
+  mkdir -p "$CM_CACHE"
+  mkdir -p "$CM_PLUGINS_DIR"
+
   # Load all plugins
   _cm_config
   _cm_load_plugins
@@ -76,10 +80,6 @@ SETVAR
   # Customize any variable
   cm_config_hook
   _cm_config
-
-  # Create default directories
-  mkdir -p "$CM_CACHE"
-  mkdir -p "$CM_PLUGINS_DIR"
 
   # Run all [plugin]__init functions from plugins
   cm_trigger "init"
