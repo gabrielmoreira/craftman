@@ -8,7 +8,7 @@ CM_PLUGINS=()
 cm_version()
 {
   if [ -d "$CM_ROOT/.git" ]; then
-    echo "Craftman $(git log master -1 --pretty=tformat:"%h (%cI)") - Craft CMS Manager"
+    echo "Craftman $(cd "$CM_ROOT" && git log master -1 --pretty=tformat:"%h (%cI)") - Craft CMS Manager"
   else
     echo "Craftman - Craft CMS Manager"
   fi
@@ -614,8 +614,6 @@ cm_containers_refresh()
 
 cm_configure()
 {
-  #cm_installer_run "$CM_INSTALL_DEPENDENCIES"
-  cm_installer_ensure_run "100_composer.sh"
   cm_installer_run_all
 
   cm_trigger "configure"
