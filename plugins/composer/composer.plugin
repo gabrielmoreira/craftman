@@ -11,8 +11,8 @@ composer__usage()
 composer__config()
 {
   COMPOSER__JSON="$CM_PROJECT_PATH/composer.json"
-  COMPOSER__INSTALL="install.composer"
-  COMPOSER__INSTALL_PATH="$CM_SCRIPTS_PATH/$COMPOSER__INSTALL"
+  COMPOSER__INSTALL="100_composer.sh"
+  COMPOSER__INSTALL_PATH="$CM_INSTALLER_PATH/$COMPOSER__INSTALL"
 }
 
 composer__generate()
@@ -28,11 +28,6 @@ cd /scripts
 curl -sS https://getcomposer.org/installer | php
 EOF
   fi
-}
-
-composer__configure()
-{
-  cm_script_run "$COMPOSER__INSTALL"
 }
 
 composer__prepare()

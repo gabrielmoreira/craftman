@@ -53,9 +53,25 @@ SETVAR
   CM_BACKUPS_DIR="backups"
   CM_SCRIPTS_DIR="scripts"
   CM_DOCKER_COMPOSE="docker-compose.yml"
-  CM_INSTALL_DEPENDENCIES="install.dependencies"
-  CM_WWW_GROUP="33"
-  CM_www_PERMISSIONS="777"
+  CM_INSTALLER_DIR="install"
+  CM_INSTALL_DEPENDENCIES="010_dependencies.sh"
+  CM_PECL_INSTALL="imagick"
+  CM_PHP_EXT_INSTALL="iconv mcrypt gd mbstring pdo pdo_mysql zip"
+  CM_PHP_EXT_ENABLE="imagick"
+  CM_APACHE_MODS_ENABLE="rewrite setenvif deflate headers filter"
+  CM_APT_INSTALL=$(cat <<SETVAR
+        libfreetype6-dev \
+        libjpeg62-turbo-dev \
+        libmcrypt-dev \
+        libpng12-dev \
+        libmagickwand-dev \
+        vim curl git
+SETVAR
+)
+  CM_CUSTOM_INSTALL=""
+  CM_USER=""
+  CM_GROUP=""
+  CM_www_PERMISSIONS="775"
 
   # Default craftman options
   CM_CRAFT_HTTP_PORT=""
@@ -94,7 +110,8 @@ _cm_config()
   CM_BACKUPS_PATH="$CM_PROJECT_PATH/$CM_BACKUPS_DIR"
   CM_SCRIPTS_PATH="$CM_PROJECT_PATH/$CM_SCRIPTS_DIR"
   CM_DOCKER_COMPOSE_PATH="$CM_PROJECT_PATH/$CM_DOCKER_COMPOSE"
-  CM_INSTALL_DEPS_PATH="$CM_SCRIPTS_PATH/$CM_INSTALL_DEPENDENCIES"
+  CM_INSTALLER_PATH="$CM_SCRIPTS_PATH/$CM_INSTALLER_DIR"
+  CM_INSTALL_DEPS_PATH="$CM_INSTALLER_PATH/$CM_INSTALL_DEPENDENCIES"
   CM_CRAFT_DB_CONFIG_PATH="$CM_APP_PATH/craft/config/db.php"
   CM_CRAFT_GENERAL_CONFIG_PATH="$CM_APP_PATH/craft/config/general.php"
   CM_PHP_INI_PATH="$CM_SCRIPTS_PATH/override/usr/local/etc/php/php.ini"
@@ -284,9 +301,7 @@ _cm_extract_craft()
 cm_generate()
 {
   cm_log "Generating Craft CMS configurations"
-  if [ "$CM_FORCE_RECREATE" = "1" ]; then
-    cm_script_flag_to_run "$CM_INSTALL_DEPENDENCIES"
-  fi
+  _cm_installers_setup
   _cm_generate_dependencies_install
   _cm_generate_craft_db_config
   _cm_generate_craft_general_config
@@ -295,41 +310,65 @@ cm_generate()
   cm_trigger "generate"
 }
 
+_cm_installers_setup()
+{
+  mkdir -p "$CM_INSTALLER_PATH"
+  cm_gitignore_add "*.ok" "$CM_INSTALLER_PATH"
+  if [ "$CM_FORCE_RECREATE" = "1" ]; then
+    cm_installer_ensure_run "$CM_INSTALL_DEPENDENCIES"
+  fi
+}
+
 _cm_generate_dependencies_install()
 {
-  cm_gitignore_add "*.ok" "$CM_SCRIPTS_PATH"
   cm_can_generate "$CM_INSTALL_DEPS_PATH"
   if [ "$CM_GENERATE_FILE" != "" ]; then
     cat > "$CM_GENERATE_FILE" <<- EOF
 #!/bin/sh
 set -e
 echo "===> Installing dependencies"
-cd /scripts
-touch .gitignore
-# Download and install libraries
-apt-get update
+cd /scripts && touch .gitignore
 
-echo "===> +  Install apt-get libraries"
-apt-get install -y --no-install-recommends \
-        libfreetype6-dev \
-        libjpeg62-turbo-dev \
-        libmcrypt-dev \
-        libpng12-dev \
-        libmagickwand-dev \
-        vim curl rsync git
+echo "===> +  Configuring user and group"
+CM_USER="$CM_USER"
+CM_GROUP="$CM_GROUP"
 
-echo "===> +  Install php extensions"
-printf "\n" | pecl install -f imagick
-docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/
-docker-php-ext-install -j\$(nproc) iconv mcrypt gd mbstring pdo pdo_mysql zip
-docker-php-ext-enable imagick
+if [ "\$CM_USER" = "" ]; then
+  CM_USER="\$(stat -c '%u' "/var/www")"
+fi
+if [ "\$CM_GROUP" = "" ]; then
+  CM_GROUP="\$(stat -c '%g' "/var/www")"
+fi
 
-echo "===> +  Enable apache mods"
-a2enmod rewrite setenvif deflate headers filter
+echo "===> +    User id: \$CM_USER"
+echo "===> +    Group id: \$CM_GROUP"
+
+usermod -u "\$CM_USER" www-data
+usermod -G "\$CM_GROUP" www-data
 
 echo "===> +  Configuring site permissions"
-chown -R :$CM_WWW_GROUP /var/www
+chown -R \$CM_USER:\$CM_GROUP /var/www
+echo "===> +    Permissions /var/www: $CM_www_PERMISSIONS"
 chmod -R $CM_www_PERMISSIONS /var/www
+
+# Download and install libraries
+echo "===> +  Update and install apt-get libraries"
+apt-get update
+apt-get install -y --no-install-recommends \
+  $CM_APT_INSTALL
+
+echo "===> +  Install php extensions"
+printf "\n" | pecl install -f $CM_PECL_INSTALL
+
+docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/
+docker-php-ext-install -j\$(nproc) $CM_PHP_EXT_INSTALL
+docker-php-ext-enable $CM_PHP_EXT_ENABLE
+
+echo "===> +  Enable apache mods"
+a2enmod $CM_APACHE_MODS_ENABLE
+
+$CM_CUSTOM_INSTALL
+
 EOF
   fi
 }
@@ -575,25 +614,39 @@ cm_containers_refresh()
 
 cm_configure()
 {
-  cm_script_run "$CM_INSTALL_DEPENDENCIES"
+  #cm_installer_run "$CM_INSTALL_DEPENDENCIES"
+  cm_installer_ensure_run "100_composer.sh"
+  cm_installer_run_all
+
   cm_trigger "configure"
 }
 
-cm_script_run()
+cm_installer_run_all()
 {
-  FILE="$CM_SCRIPTS_PATH/$1"
+  cm_log "Prepare to run install scripts"
+  find "$CM_INSTALLER_PATH" -name '*.sh' | sort |
+  while read -r INSTALLER_FILE
+  do
+    cm_installer_run "$(basename "$INSTALLER_FILE")"
+  done
+}
+
+cm_installer_run()
+{
+  FILE="$CM_INSTALLER_PATH/$1"
   if [ -f "$FILE.ok" ]; then
-    cm_log "Skipping $1"
+    cm_log "Skipping install script $1"
   else
+    cm_log "Running install script $1"
     chmod +x "$FILE"
-    cm_craft_exec "/scripts/$1"
-    touch "$CM_SCRIPTS_PATH/$1.ok"
+    cm_craft_exec "/scripts/$CM_INSTALLER_DIR/$1"
+    touch "$CM_INSTALLER_PATH/$1.ok"
   fi
 }
 
-cm_script_flag_to_run()
+cm_installer_ensure_run()
 {
-  rm -f "$CM_SCRIPTS_PATH/$1.ok"
+  rm -f "$CM_INSTALLER_PATH/$1.ok"
 }
 
 cm_craft_run()
@@ -605,7 +658,7 @@ cm_craft_run()
 cm_craft_exec()
 {
   CMD="${*:-echo}"
-  docker exec -i -t "$(cm_craft_container)" sh -c "$CMD"
+  docker exec -t "$(cm_craft_container)" sh -c "$CMD"
 }
 
 cm_copy_files()
