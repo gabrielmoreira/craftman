@@ -194,6 +194,13 @@ You can try force `-F` to redownload craft, regenerate configurations e recreate
 
     craftman -F -P=8080 install
 
+
+## TODO
+
+- [ ] Rename craftman private variables to _CM
+- [ ] Rearrange functions in logical groups or files
+
+
 ## Roadmap
 
 - [x] MySQL backup and restore
