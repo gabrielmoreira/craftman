@@ -24,6 +24,8 @@ _cm_initialize()
     CRAFTMAN_DIR="$HOME/.craftman"
   fi
   CM_CACHE="$CRAFTMAN_DIR/cache"
+  CM_CONFIG_PATH="$CRAFTMAN_DIR/config"
+  CM_CUSTOM_CONFIG_PATH="$CRAFTMAN_DIR/config.d"
   CM_PLUGIN_PREFIX=""
   CM_PLUGINS_DIR="$CRAFTMAN_DIR/plugins"
   CM_PLUGINS_CORE_DIR="$CM_ROOT/plugins"
@@ -82,11 +84,19 @@ SETVAR
   # Create default directories
   mkdir -p "$CM_CACHE"
   mkdir -p "$CM_PLUGINS_DIR"
+  mkdir -p "$CM_CUSTOM_CONFIG_PATH"
   
   # Configure and interpolate variables
   _cm_config
 
-  # Load all plugins
+  # Load custom variables and hooks
+  if [ -f "$CRAFTMAN_DIR/config" ]; then
+    cm_debug "Loading $CRAFTMAN_DIR/config"
+    # shellcheck source=/dev/null
+    . "$CRAFTMAN_DIR/config"
+  fi
+
+    # Load all plugins
   _cm_load_plugins
 
   # Load custom variables and hooks
@@ -139,6 +149,7 @@ cm_usage()
   echo " $CM regenerate            Regenerate all configuration files"
   echo " $CM reconfigure           Run all $CM_SCRIPTS_DIR/install.* files"
   echo " $CM copy                  Copy $CM_SCRIPTS_DIR/override/**/* to craft container root /"
+  echo " $CM remove                Remove all containers"
   echo " $CM --upgrade             Upgrade Craftman"
   echo
   echo "Options:"
@@ -214,7 +225,18 @@ cm_call()
 
 _cm_pre_plugin_usage()
 {
-  echo "Plugin $1"
+  _CM_TRIGGER_PRE="$CM_TRIGGER_PRE"
+  CM_TRIGGER_PRE=""
+  _CM_TRIGGER_POST="$CM_TRIGGER_POST"
+  CM_TRIGGER_POST=""
+  _CM_PLUGIN_INFO="$(cm_call "$1__info")"
+  if [ "$_CM_PLUGIN_INFO" != "" ]; then
+    echo "$_CM_PLUGIN_INFO commands:"
+  else
+    echo "Plugin $1:"
+  fi
+  CM_TRIGGER_PRE="$_CM_TRIGGER_PRE"
+  CM_TRIGGER_POST="$_CM_TRIGGER_POST"
 }
 
 
@@ -313,6 +335,7 @@ cm_generate()
 _cm_installers_setup()
 {
   mkdir -p "$CM_INSTALLER_PATH"
+  mkdir -p "$CM_APP_PATH"
   cm_gitignore_add "*.ok" "$CM_INSTALLER_PATH"
   if [ "$CM_FORCE_RECREATE" = "1" ]; then
     cm_installer_ensure_run "$CM_INSTALL_DEPENDENCIES"
@@ -484,6 +507,7 @@ cm_can_generate()
     CM_GENERATE_FILE=""
   else
     cm_log "+  Generating '$(cm_relativize "$CM_PROJECT_PATH" "$1")'"
+    mkdir -p "$(dirname "$1")"
   fi
 }
 
@@ -602,6 +626,12 @@ cm_start()
   cm_log "*****************************************************"
   cm_log
   cm_admin
+}
+
+cm_containers_remove()
+{
+  cm_containers_stop
+  cm_docker_compose rm
 }
 
 cm_containers_refresh()
@@ -741,6 +771,24 @@ cm_find_closest()
   [ -f "$search_dir/$filename" ] && echo "$search_dir" || echo ""
 }
 
+cm_load_config()
+{
+  if [ -f "$CM_CUSTOM_CONFIG_PATH/$1.conf" ]; then
+    cm_debug "+  Loading $CM_CUSTOM_CONFIG_PATH/$1.conf"
+    . "$CM_CUSTOM_CONFIG_PATH/$1.conf"
+  fi
+}
+
+cm_remove_config()
+{
+  rm -f "$CM_CUSTOM_CONFIG_PATH/$1.conf"
+}
+
+cm_get_config_path()
+{
+  echo "$CM_CUSTOM_CONFIG_PATH/$1.conf"
+}
+
 cm_gitignore_add()
 {
   _cm_gitignore_file=".gitignore"
@@ -835,6 +883,10 @@ while [ "$1" != "" ]; do
       ;;
     restart)
       COMMAND="cm_containers_restart"
+      break
+      ;;
+    remove)
+      COMMAND="cm_containers_remove"
       break
       ;;
     --upgrade)

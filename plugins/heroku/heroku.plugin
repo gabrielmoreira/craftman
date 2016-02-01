@@ -2,6 +2,11 @@
 set -e
 PLUGIN_NAME="heroku"
 
+heroku__info()
+{
+  echo "Heroku"
+}
+
 heroku__usage()
 {
   echo " $CM heroku:prepare        Generate required files to deploy to Heroku"

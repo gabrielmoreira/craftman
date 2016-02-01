@@ -2,6 +2,11 @@
 set -e
 PLUGIN_NAME="composer"
 
+composer__info()
+{
+  echo "PHP Composer"
+}
+
 composer__usage()
 {
   echo " $CM composer:lock         Regenerate composer.lock for your composer.json file"

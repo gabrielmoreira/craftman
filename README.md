@@ -44,10 +44,12 @@ Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
      craftman regenerate            Regenerate all configuration files
      craftman reconfigure           Run all scripts/install.* files
      craftman copy                  Copy scripts/override/**/* to craft container root /
+     craftman remove                Remove all containers
      craftman --upgrade             Upgrade Craftman
 
     Options:
      -h, --help
+     -v, --version
      -P, --port            HTTP port to expose on host
 
      -F, --force-all       Force redownload Craft CMS, regenerate and overwrite configurations and recreate containers
@@ -55,19 +57,27 @@ Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
      -O, --force-overwrite Force to overwrite generated configuration files at app/ and scripts/ directories
      -R, --force-recreate  Force to reconfigure and recreate containers
 
-    Plugin composer
+    PHP Composer commands:
      craftman composer:lock         Regenerate composer.lock for your composer.json file
      craftman composer:prepare      Generate required files to deploy to Heroku
 
-    Plugin heroku
+    Heroku commands:
      craftman heroku:prepare        Generate required files to deploy to Heroku
 
-    Plugin mysql
+    MySQL commands:
      craftman mysql:run             Open mysql client or run a command on MySQL docker container
      craftman mysql:backup          Create a backup at backups/
      craftman mysql:restore <file>  Restore a backup from <file> (.sql.gz) to MySQL database
 
+    PHP Docker Image commands:
+     craftman phpimage:build [name] [base-image]  Build a new docker php image from this base docker image
+     craftman phpimage:prepare                    Create base structure for php image generation
+     craftman phpimage:set <name>                 Save default php image
+     craftman phpimage:get                        Shows current php image
+     craftman phpimage:remove                     Clear php image
+
     Full Documentation: https://github.com/gabrielmoreira/craftman
+
 
 
 If you want to develop locally a new site using Craft CMS:
@@ -197,9 +207,9 @@ You can try force `-F` to redownload craft, regenerate configurations e recreate
 
 ## TODO
 
+- [x] Build a local Docker base image with updated php and libraries for fast installations
 - [ ] Rename craftman private variables to _CM
 - [ ] Rearrange functions in logical groups or files
-- [ ] Build a local Docker base image with updated php and libraries for fast installations
 
 ## Roadmap
 

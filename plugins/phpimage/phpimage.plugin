@@ -1,0 +1,83 @@
+#!/bin/sh
+set -e
+PLUGIN_NAME="phpimage"
+
+phpimage__info()
+{
+  echo "PHP Docker Image"
+}
+
+phpimage__usage()
+{
+  echo " $CM phpimage:build [name] [base-image]  Build a new docker php image from this base docker image"
+  echo " $CM phpimage:prepare                    Create base structure for php image generation"
+  echo " $CM phpimage:set <name>                 Save default php image"
+  echo " $CM phpimage:get                        Shows current php image"
+  echo " $CM phpimage:remove                     Clear php image"
+
+}
+
+phpimage__config()
+{
+  # Load stored configuration
+  cm_load_config "100_phpimage"
+
+  # Change default docker php image
+	if [ "$PHPIMAGE__CUSTOMIMAGE" != "" ]; then
+		if [ "$PHPIMAGE__CUSTOMIMAGE" != "$CM_DOCKER_PHP_IMAGE" ]; then
+			PHPIMAGE__DEFAULT_IMAGE="$CM_DOCKER_PHP_IMAGE"
+		fi
+		CM_DOCKER_PHP_IMAGE="$PHPIMAGE__CUSTOMIMAGE"
+	else
+		PHPIMAGE__DEFAULT_IMAGE="$CM_DOCKER_PHP_IMAGE"
+	fi
+}
+
+phpimage__prepare()
+{
+  cm_generate
+  mkdir -p "$CM_APP_PATH/html"
+}
+
+phpimage__build()
+{
+  PHPIMAGE__IMAGE="${1:-phpimage}"
+  PHPIMAGE__BASEIMAGE="${2:-$PHPIMAGE__DEFAULT_IMAGE}"
+  cm_log "Building a new php base image [$PHPIMAGE__IMAGE] from [$PHPIMAGE__BASEIMAGE]"
+	phpimage__prepare
+  cm_log "+  Creating base container"
+	PHPIMAGE__DOCKER_CONTAINER=$(docker run -d \
+    -v "$CM_APP_PATH:/var/www" \
+    -v "$CM_SCRIPTS_PATH:/scripts" \
+    "$PHPIMAGE__BASEIMAGE")
+  cm_log "+  Running all installation scripts"
+  docker exec "$PHPIMAGE__DOCKER_CONTAINER"  \
+    sh -c "(find /scripts/install/ -name '*.sh' | sort | xargs chmod +x)"
+  docker exec "$PHPIMAGE__DOCKER_CONTAINER"  \
+    sh -c "(find /scripts/install/ -name '*.sh' | sort | xargs sh -c)"
+  cm_log "+  Commiting image $PHPIMAGE__IMAGE"
+	docker commit "$PHPIMAGE__DOCKER_CONTAINER" "$PHPIMAGE__IMAGE"
+  cm_log "+  Setting $PHPIMAGE__IMAGE as default php image"
+  phpimage__set "$PHPIMAGE__IMAGE"
+  docker rm "$PHPIMAGE__DOCKER_CONTAINER"
+}
+
+phpimage__set()
+{
+  [ "$1" = "" ] && cm_abort "Docker image name is required"
+  echo "PHPIMAGE__CUSTOMIMAGE=\"$1\"" >> "$(cm_get_config_path "100_phpimage")"
+}
+
+phpimage__get()
+{
+  if [ "$PHPIMAGE__CUSTOMIMAGE" == "" ]; then
+    echo "$CM_DOCKER_PHP_IMAGE"
+  else
+    echo "$PHPIMAGE__CUSTOMIMAGE"
+  fi
+}
+
+phpimage__remove()
+{
+  cm_remove_config "100_phpimage"
+}

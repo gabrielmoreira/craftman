@@ -3,6 +3,11 @@ set -e
 PLUGIN_NAME="mysql"
 MYSQL__DATABASE_NAME="craft"
 
+mysql__info()
+{
+  echo "MySQL"
+}
+
 mysql__usage()
 {
   echo " $CM mysql:run             Open mysql client or run a command on MySQL docker container"
