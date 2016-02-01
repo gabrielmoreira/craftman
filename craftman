@@ -23,6 +23,7 @@ _cm_initialize()
   if [ -z "$CRAFTMAN_DIR" ]; then
     CRAFTMAN_DIR="$HOME/.craftman"
   fi
+  CM_CACHE="$CRAFTMAN_DIR/cache"
   CM_PLUGIN_PREFIX=""
   CM_PLUGINS_DIR="$CRAFTMAN_DIR/plugins"
   CM_PLUGINS_CORE_DIR="$CM_ROOT/plugins"
@@ -65,9 +66,11 @@ SETVAR
   # Create default directories
   mkdir -p "$CM_CACHE"
   mkdir -p "$CM_PLUGINS_DIR"
+  
+  # Configure and interpolate variables
+  _cm_config
 
   # Load all plugins
-  _cm_config
   _cm_load_plugins
 
   # Load custom variables and hooks
@@ -94,7 +97,6 @@ _cm_config()
   CM_INSTALL_DEPS_PATH="$CM_SCRIPTS_PATH/$CM_INSTALL_DEPENDENCIES"
   CM_CRAFT_DB_CONFIG_PATH="$CM_APP_PATH/craft/config/db.php"
   CM_CRAFT_GENERAL_CONFIG_PATH="$CM_APP_PATH/craft/config/general.php"
-  CM_CACHE="$CRAFTMAN_DIR/cache"
   CM_PHP_INI_PATH="$CM_SCRIPTS_PATH/override/usr/local/etc/php/php.ini"
   CM_CRAFT_ZIP="$CM_CACHE/$CM_CRAFT_ZIPNAME"
 
