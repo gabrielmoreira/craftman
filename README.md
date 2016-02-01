@@ -11,7 +11,7 @@ Note: `craftman` does not support Windows.
 
 ### Install script
 
-To install or update craftman, you can use the [install script][2] using cURL:
+To install or update craftman, you can use cURL:
 
     curl -o- https://raw.githubusercontent.com/gabrielmoreira/craftman/master/craftman_install | sh
 
@@ -43,7 +43,7 @@ Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
      craftman run                   Open bash or run a command on Craft docker container
      craftman regenerate            Regenerate all configuration files
      craftman reconfigure           Run all scripts/install.* files
-     craftman copy                  Copy and overwrite scripts/root_files/**/* to
+     craftman copy                  Copy scripts/override/**/* to craft container root /
      craftman --upgrade             Upgrade Craftman
 
     Options:
@@ -64,10 +64,8 @@ Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
 
     Plugin mysql
      craftman mysql:run             Open mysql client or run a command on MySQL docker container
-     craftman mysql:backup          Create a backup at backups/
+     craftman mysql:backup          Create a backup at /
      craftman mysql:restore <file>  Restore a backup from <file> (.sql.gz) to MySQL database
-
-
 
 
 If you want to develop locally a new site using Craft CMS:
@@ -115,18 +113,18 @@ Edit your `[YOUR-PROJECT-DIRECTORY]/.craftman` and add this function:
 
     function mysql_restore_hook()
     {
-        log "Processing '$1' file before import"
-    	log "+ Replace www.mysite.com to localhost"
-    	log "+ Remove https from localhost URLs"
-    	log "+ Doesn't import craft_searchindex (We prefer to rebuild index using craft)"
+        cm_log "Processing '$1' file before import"
+    	cm_log "+ Replace www.mysite.com to localhost"
+    	cm_log "+ Remove https from localhost URLs"
+    	cm_log "+ Doesn't import craft_searchindex (We prefer to rebuild index using craft)"
     	cat "$1" \
     		| sed -e 's/www\.mysite\.com/localhost/g' \
     		| sed -r 's/https?([:\/\\]+)localhost/http\1localhost/g' \
     		| perl -pe 'BEGIN{undef $/;} s/INSERT INTO .?craft_searchindex.*?DROP TABLE/DROP TABLE/sg' \
     			> "$1.tmp"
-    	log "+ Showing 20 lines of diff after file processed"
+    	cm_log "+ Showing 20 lines of diff after file processed"
     	diff "$1" "$1.tmp" | head -n 20
-    	log "+ Removing temporary files"
+    	cm_log "+ Removing temporary files"
     	mv "$1" "$1.bak"
     	mv "$1.tmp" "$1"
     	rm -f "$1.bak"
@@ -134,7 +132,7 @@ Edit your `[YOUR-PROJECT-DIRECTORY]/.craftman` and add this function:
 
 There are other hooks:
 
-function configuration_hook()
+function cm_config_hook()
 
         Use this hook to change default configurations/variables
 
@@ -152,11 +150,11 @@ Create your plugin and put at `~/.craftman/plugins/[your-plugin]/[your-plugin].p
 
 All public functions must start with `pluginname__`
 
-        function hello__usage()
+        hello__usage() { ... }
 
 All private functions name must start with `__pluginname_`
 
-        function __hello_some_util()
+        __hello_some_util() { ... }
 
 All variables must start with `PLUGINNAME__`
 
@@ -164,7 +162,13 @@ All variables must start with `PLUGINNAME__`
 
 All hooks must start with "pluginname_" and ends with "_hook"
 
-        function hello_world_hook()
+        hello_world_hook() { ... }
+
+Notes:
+
+- You can use `CM_` variables and `cm_` functions.
+- Never use craftman functions prefixed with `_cm`
+- Prefixes `cm_`, `_cm`, `CM_`, `CRAFTMAN_` for variables and functions are all reserved to `craftman`- Never do any work outside of functions.
 
 ## License
 

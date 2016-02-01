@@ -4,12 +4,12 @@ PLUGIN_NAME="heroku"
 
 heroku__usage()
 {
-	echo " $SELF heroku:prepare        Generate required files to deploy to Heroku"
+  echo " $CM heroku:prepare        Generate required files to deploy to Heroku"
 }
 
-heroku__interpolate()
+heroku__config()
 {
-  HEROKU__PROCFILE="$DIR/Procfile"
+  HEROKU__PROCFILE="$CM_PROJECT_PATH/Procfile"
 }
 
 heroku__prepare()
@@ -22,12 +22,10 @@ heroku__prepare()
 
 __heroku_create_procfile()
 {
-  if [ -f "$HEROKU__PROCFILE" ] && [ "$FORCE_OVERWRITE" = "0" ]; then
-    cm_log "+ Using existent $(basename "$HEROKU__PROCFILE")"
-  else
-    cm_log "+ Creating $(basename "$HEROKU__PROCFILE") file"
-    cat > "$HEROKU__PROCFILE" <<- EOF
-web: vendor/bin/heroku-php-apache2 -i scripts/root_files/usr/local/etc/php/php.ini app/html
+  cm_can_generate "$HEROKU__PROCFILE"
+  if [ "$CM_GENERATE_FILE" != "" ]; then
+    cat > "$CM_GENERATE_FILE" <<- EOF
+web: vendor/bin/heroku-php-apache2 -i scripts/override/usr/local/etc/php/php.ini app/html
 EOF
   fi
 }

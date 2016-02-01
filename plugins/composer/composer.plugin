@@ -4,26 +4,23 @@ PLUGIN_NAME="composer"
 
 composer__usage()
 {
-  echo " $SELF composer:lock         Regenerate composer.lock for your composer.json file"
-	echo " $SELF composer:prepare      Generate required files to deploy to Heroku"
+  echo " $CM composer:lock         Regenerate composer.lock for your composer.json file"
+  echo " $CM composer:prepare      Generate required files to deploy to Heroku"
 }
 
-composer__interpolate()
+composer__config()
 {
-  COMPOSER__JSON="$DIR/composer.json"
+  COMPOSER__JSON="$CM_PROJECT_PATH/composer.json"
   COMPOSER__INSTALL="install.composer"
-  COMPOSER__INSTALL_PATH="$SCRIPTS_PATH/$COMPOSER__INSTALL"
+  COMPOSER__INSTALL_PATH="$CM_SCRIPTS_PATH/$COMPOSER__INSTALL"
 }
 
-composer__configure()
+composer__generate()
 {
-  cd "$SCRIPTS_PATH"
-  add_gitignore "composer.phar"
-  if [ -f "$COMPOSER__INSTALL_PATH" ] && [ "$FORCE_OVERWRITE" = "0" ]; then
-    cm_log "+ Using existent $(basename "$COMPOSER__INSTALL_PATH")"
-  else
-    cm_log "+ Creating $(basename "$COMPOSER__INSTALL_PATH") file"
-    cat > "$COMPOSER__INSTALL_PATH" <<- EOF
+  cm_gitignore_add "composer.phar" "$CM_SCRIPTS_PATH"
+  cm_can_generate "$COMPOSER__INSTALL_PATH"
+  if [ "$CM_GENERATE_FILE" != "" ]; then
+    cat > "$CM_GENERATE_FILE" <<- EOF
 #!/bin/sh
 set -e
 echo "===> Installing PHP Composer"
@@ -33,9 +30,9 @@ EOF
   fi
 }
 
-composer__configuration_run()
+composer__configure()
 {
-  run_script_once "$COMPOSER__INSTALL"
+  cm_script_run "$COMPOSER__INSTALL"
 }
 
 composer__prepare()
@@ -46,29 +43,25 @@ composer__prepare()
 
 composer__lock()
 {
-  [ -f "$DIR/composer.json" ] || abort "composer.json is required"
+  [ -f "$CM_PROJECT_PATH/composer.json" ] || cm_abort "composer.json is required"
   cm_log "Generating composer.lock"
-  mkdir -p "$SCRIPTS_PATH/composer"
-  cat > "$SCRIPTS_PATH/composer/.gitignore" <<- EOF
-*
-!.gitignore
-EOF
-  docker cp "$DIR/composer.json" "$(craft_container):/scripts/composer"
-  craft_exec "cd /scripts/composer && /scripts/composer.phar install && /scripts/composer.phar update"
-  if [ -f "$DIR/composer.lock" ]; then
-    mv -f "$DIR/composer.lock" "$DIR/composer.lock.bak"
+  mkdir -p "$CM_SCRIPTS_PATH/composer"
+  cm_gitignore_add "*" "$CM_SCRIPTS_PATH/composer"
+  cm_gitignore_add "!.gitignore" "$CM_SCRIPTS_PATH/composer"
+  docker cp "$CM_PROJECT_PATH/composer.json" "$(cm_craft_container):/scripts/composer"
+  cm_craft_exec "cd /scripts/composer && /scripts/composer.phar install && /scripts/composer.phar update"
+  if [ -f "$CM_PROJECT_PATH/composer.lock" ]; then
+    mv -f "$CM_PROJECT_PATH/composer.lock" "$CM_PROJECT_PATH/composer.lock.bak"
   fi
-  cp "$SCRIPTS_PATH/composer/composer.lock" "$DIR/composer.lock"
-  rm -f "$DIR/composer.lock.bak"
+  cp "$CM_SCRIPTS_PATH/composer/composer.lock" "$CM_PROJECT_PATH/composer.lock"
+  rm -f "$CM_PROJECT_PATH/composer.lock.bak"
 }
 
 __composer__create_json()
 {
-  if [ -f "$COMPOSER__JSON" ] && [ "$FORCE_OVERWRITE" = "0" ]; then
-    cm_log "+ Using existent $(basename "$COMPOSER__JSON")"
-  else
-    cm_log "+ Creating $(basename "$COMPOSER__JSON") file"
-    cat > "$COMPOSER__JSON" <<- EOF
+  cm_can_generate "$COMPOSER__JSON"
+  if [ "$CM_GENERATE_FILE" != "" ]; then
+    cat > "$CM_GENERATE_FILE" <<- EOF
 {
   "require": {
     "ext-mbstring": "*",
