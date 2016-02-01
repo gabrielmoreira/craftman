@@ -5,6 +5,15 @@ set -e
 #
 CM_PLUGINS=()
 
+cm_version()
+{
+  if [ -d "$CM_ROOT/.git" ]; then
+    echo "Craftman $(git log master -1 --pretty=tformat:"%h (%cI)") - Craft CMS Manager"
+  else
+    echo "Craftman - Craft CMS Manager"
+  fi
+}
+
 _cm_initialize()
 {
   # Base craftman configs
@@ -95,7 +104,7 @@ _cm_config()
 
 cm_usage()
 {
-  echo "Craft CMS Manager"
+  cm_version
   echo
   echo "Usage: $CM [options] <COMMAND> [args]"
   echo
@@ -115,6 +124,7 @@ cm_usage()
   echo
   echo "Options:"
   echo " -h, --help"
+  echo " -v, --version"
   echo " -P, --port            HTTP port to expose on host"
   echo
   echo " -F, --force-all       Force redownload Craft CMS, regenerate and overwrite configurations and recreate containers"
@@ -125,6 +135,8 @@ cm_usage()
   CM_TRIGGER_PRE="_cm_pre_plugin_usage"
   CM_TRIGGER_POST="_cm_post_plugin_usage"
   cm_trigger "usage"
+  echo "Full Documentation: https://github.com/gabrielmoreira/craftman"
+  echo
 }
 
 cm_trace()
@@ -722,6 +734,10 @@ while [ "$1" != "" ]; do
     -h | --help)
       cm_usage
       exit
+      ;;
+    -v)
+      COMMAND="cm_version"
+      break
       ;;
     -F | --force-all)
       CM_FORCE_DOWNLOAD="1"

@@ -6,7 +6,7 @@ MYSQL__DATABASE_NAME="craft"
 mysql__usage()
 {
   echo " $CM mysql:run             Open mysql client or run a command on MySQL docker container"
-  echo " $CM mysql:backup          Create a backup at ${BACKUP_DIR}/"
+  echo " $CM mysql:backup          Create a backup at ${CM_BACKUPS_DIR}/"
   echo " $CM mysql:restore <file>  Restore a backup from <file> (.sql.gz) to MySQL database"
 }
 

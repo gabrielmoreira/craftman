@@ -64,8 +64,10 @@ Eg: `curl ... | CRAFTMAN_DIR="path/to/craftman" sh`
 
     Plugin mysql
      craftman mysql:run             Open mysql client or run a command on MySQL docker container
-     craftman mysql:backup          Create a backup at /
+     craftman mysql:backup          Create a backup at backups/
      craftman mysql:restore <file>  Restore a backup from <file> (.sql.gz) to MySQL database
+
+    Full Documentation: https://github.com/gabrielmoreira/craftman
 
 
 If you want to develop locally a new site using Craft CMS:
