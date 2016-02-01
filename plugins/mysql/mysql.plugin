@@ -20,30 +20,30 @@ mysql__backup()
 {
   mkdir -p "$BACKUP_PATH"
   MYSQL__BACKUP_FILE="$BACKUP_PATH/${NAME}_$(date +%Y-%m-%d_%H-%M)"
-  log "Dumping from MySQL"
+  cm_log "Dumping from MySQL"
   mysql__run mysqldump craft > "$MYSQL__BACKUP_FILE.sql"
   mysql_backup_hook "$MYSQL__BACKUP_FILE.sql"
-  log "Gziping backup file"
+  cm_log "Gziping backup file"
   gzip -f "$MYSQL__BACKUP_FILE.sql"
-  log "Backup file created at $MYSQL__BACKUP_FILE.sql.gz"
+  cm_log "Backup file created at $MYSQL__BACKUP_FILE.sql.gz"
 }
 
 mysql__restore()
 {
   [ "$1" = "" ] && abort "File is required <file.sql.gz>"
-  log "Restoring backup $1"
+  cm_log "Restoring backup $1"
   MYSQL__RESTORE_NAME="$(basename "$1").sql"
   MYSQL__RESTORE_FILE="/tmp/$MYSQL__RESTORE_NAME"
   gzip -d -c "$1" > "$MYSQL__RESTORE_FILE"
   mysql_restore_hook "$MYSQL__RESTORE_FILE"
-  log "Copy backup file to container /tmp"
+  cm_log "Copy backup file to container /tmp"
   docker cp "$MYSQL__RESTORE_FILE" "$(__mysql_container):/tmp"
-  log "Import backup file to MySQL"
+  cm_log "Import backup file to MySQL"
   mysql__run "mysql craft -e 'source $MYSQL__RESTORE_FILE'"
-  log "Removing all temporary files"
+  cm_log "Removing all temporary files"
   rm -f  "$MYSQL__RESTORE_FILE"
   mysql__run "rm -f $MYSQL__RESTORE_FILE"
-  log "Backup restore completed"
+  cm_log "Backup restore completed"
 }
 
 __mysql_container()

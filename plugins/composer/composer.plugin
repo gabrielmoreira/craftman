@@ -20,9 +20,9 @@ composer__configure()
   cd "$SCRIPTS_PATH"
   add_gitignore "composer.phar"
   if [ -f "$COMPOSER__INSTALL_PATH" ] && [ "$FORCE_OVERWRITE" = "0" ]; then
-    log "+ Using existent $(basename "$COMPOSER__INSTALL_PATH")"
+    cm_log "+ Using existent $(basename "$COMPOSER__INSTALL_PATH")"
   else
-    log "+ Creating $(basename "$COMPOSER__INSTALL_PATH") file"
+    cm_log "+ Creating $(basename "$COMPOSER__INSTALL_PATH") file"
     cat > "$COMPOSER__INSTALL_PATH" <<- EOF
 #!/bin/sh
 set -e
@@ -40,14 +40,14 @@ composer__configuration_run()
 
 composer__prepare()
 {
-  log "Preparing composer.json"
+  cm_log "Preparing composer.json"
   __composer__create_json
 }
 
 composer__lock()
 {
   [ -f "$DIR/composer.json" ] || abort "composer.json is required"
-  log "Generating composer.lock"
+  cm_log "Generating composer.lock"
   mkdir -p "$SCRIPTS_PATH/composer"
   cat > "$SCRIPTS_PATH/composer/.gitignore" <<- EOF
 *
@@ -65,9 +65,9 @@ EOF
 __composer__create_json()
 {
   if [ -f "$COMPOSER__JSON" ] && [ "$FORCE_OVERWRITE" = "0" ]; then
-    log "+ Using existent $(basename "$COMPOSER__JSON")"
+    cm_log "+ Using existent $(basename "$COMPOSER__JSON")"
   else
-    log "+ Creating $(basename "$COMPOSER__JSON") file"
+    cm_log "+ Creating $(basename "$COMPOSER__JSON") file"
     cat > "$COMPOSER__JSON" <<- EOF
 {
   "require": {
