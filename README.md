@@ -208,6 +208,7 @@ You can try force `-F` to redownload craft, regenerate configurations e recreate
 - [x] MySQL backup and restore
 - [x] Heroku support (only using S3 or other cloud asset source)
 - [x] Plugins support
+- [ ] Support bash completion
 - [ ] Plugin install and update commands
 - [ ] Advanced composer support (E.g. craftman compose:run install, craftman compose:run update, ...)
 - [ ] Destroy all containers command
