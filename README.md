@@ -185,7 +185,6 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
 ## Problems
 
 If you try to install craft and the installation fails, you might get an error when trying to reinstall them again or you might get an error like the following:
@@ -196,12 +195,11 @@ You can try force `-F` to redownload craft, regenerate configurations e recreate
 
     craftman -F -P=8080 install
 
-
 ## TODO
 
 - [ ] Rename craftman private variables to _CM
 - [ ] Rearrange functions in logical groups or files
-
+- [ ] Build a local Docker base image with updated php and libraries for fast installations
 
 ## Roadmap
 
@@ -216,4 +214,3 @@ You can try force `-F` to redownload craft, regenerate configurations e recreate
 - [ ] OSX support
 - [ ] Redis support for session cache
 - [ ] Multi locale site structure generation
-
