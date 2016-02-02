@@ -19,11 +19,11 @@ _cm_initialize()
   # Base craftman configs
   CM="$(basename "$(readlink -f "$0")")"
   CM_ROOT="$(dirname "$(readlink -f "$0")")"
-  CM_PROJECT_CONFIG=".craftman"
-  CM_PROJECT_PATH=$(cm_find_closest "$CM_PROJECT_CONFIG")
   if [ -z "$CRAFTMAN_DIR" ]; then
     CRAFTMAN_DIR="$HOME/.craftman"
   fi
+  CM_PROJECT_CONFIG=".craftman"
+  CM_PROJECT_PATH=$(cm_find_closest "$CM_PROJECT_CONFIG")
   CM_CACHE="$CRAFTMAN_DIR/cache"
   CM_CONFIG_PATH="$CRAFTMAN_DIR/config"
   CM_CUSTOM_CONFIG_PATH="$CRAFTMAN_DIR/config.d"
