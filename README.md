@@ -119,7 +119,7 @@ Sometimes we need a little more customization. For that, you can use craftman ho
 
 If you want hook mysql restore to edit .sql file before import:
 
-Edit your `[YOUR-PROJECT-DIRECTORY]/.craftman` and add this function:
+Edit your `[YOUR-PROJECT-DIRECTORY]/.craftman/config` and add this function:
 
 <sub>**IMPORTANT**: THIS HOOK CODE IS JUST A SAMPLE USAGE</sub>
 
@@ -146,7 +146,7 @@ There are other hooks:
 
 function cm_config_hook()
 
-        Use this hook to change default configurations/variables
+        Use this hook to override craftman configurations
 
 function mysql_backup_hook( *[sql-file-path]* )
 
@@ -179,7 +179,7 @@ All hooks must start with "pluginname_" and ends with "_hook"
 Notes:
 
 - You can use `CM_` variables and `cm_` functions.
-- Never use craftman functions prefixed with `_cm`
+- Never use private craftman functions prefixed with `_cm`.
 - Prefixes `cm_`, `_cm`, `CM_`, `CRAFTMAN_` for variables and functions are all reserved to `craftman`- Never do any work outside of functions.
 
 ## License

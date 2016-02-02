@@ -19,7 +19,8 @@ _cm_initialize()
   # Base craftman configs
   CM="$(basename "$(readlink -f "$0")")"
   CM_ROOT="$(dirname "$(readlink -f "$0")")"
-  CM_PROJECT_PATH=$(cm_find_closest ".craftman")
+  CM_PROJECT_CONFIG=".craftman"
+  CM_PROJECT_PATH=$(cm_find_closest "$CM_PROJECT_CONFIG")
   if [ -z "$CRAFTMAN_DIR" ]; then
     CRAFTMAN_DIR="$HOME/.craftman"
   fi
@@ -33,7 +34,9 @@ _cm_initialize()
   CM_PROJECT_PATH="$(readlink -f "$CM_PROJECT_PATH")"
   CM_PROJECT_DIR="$(basename "$CM_PROJECT_PATH")"
   CM_PROJECT_NAME="$(echo "$CM_PROJECT_DIR" | tr '[:upper:]' '[:lower:]')"
-
+  CM_PROJECT_CRAFTMAN_PATH="$CM_PROJECT_PATH/$CM_PROJECT_CONFIG"
+  CM_PROJECT_CRAFTMAN_CONFIG="$CM_PROJECT_CRAFTMAN_PATH/config"
+  CM_PROJECT_CUSTOM_CONFIG_PATH="$CM_PROJECT_CRAFTMAN_PATH/config.d"
   # Default craftman configurations
   CM_DOCKER_PHP_IMAGE="php:5-apache"
   CM_DOCKER_MYSQL_IMAGE="mariadb:10.1"
@@ -43,9 +46,10 @@ _cm_initialize()
     - MYSQL_ALLOW_EMPTY_PASSWORD=yes
 SETVAR
 )
-  CM_DOCKER_MYSQL_DATA_VOLUME="/var/lib/mysql"
-  CM_DOCKER_CRAFT_VOLUMES=""
-  CM_DOCKER_CRAFT_ENV=$(cat <<SETVAR
+  CM_DOCKER_MYSQL_DATA_VOLUMES="    - /var/lib/mysql"
+  CM_DOCKER_CRAFT_CUSTOM_VOLUMES=""
+  CM_DOCKER_CRAFT_ENVS=()
+  CM_DOCKER_CRAFT_DEFAULT_ENV=$(cat <<SETVAR
     - CRAFT_DEVMODE=true
 SETVAR
 )
@@ -100,10 +104,23 @@ SETVAR
   _cm_load_plugins
 
   # Load custom variables and hooks
-  if [ -f "$CM_PROJECT_PATH/.craftman" ]; then
-    cm_debug "Loading $CM_PROJECT_PATH/.craftman"
+  if [ -f "$CM_PROJECT_CRAFTMAN_CONFIG" ]; then
+    cm_debug "Loading $CM_PROJECT_CRAFTMAN_CONFIG"
     # shellcheck source=/dev/null
-    . "$CM_PROJECT_PATH/.craftman"
+    . "$CM_PROJECT_CRAFTMAN_CONFIG"
+  fi
+
+  if [ -d "$CM_PROJECT_CUSTOM_CONFIG_PATH" ]; then
+    cm_debug "Searching $CM_PROJECT_CUSTOM_CONFIG_PATH/*.conf"
+    _CM_CONFIG_COUNT=$(sh -c "ls 2>/dev/null ls -1f \"$CM_PROJECT_CUSTOM_CONFIG_PATH/\"*.conf | wc -l")
+    if [ "$_CM_CONFIG_COUNT" != "0" ]; then
+      for _CM_PROJECT_CONFIG_FILE in "$CM_PROJECT_CUSTOM_CONFIG_PATH/"*.conf
+      do 
+        cm_debug "Loading [$_CM_PROJECT_CONFIG_FILE]"
+        # shellcheck source=/dev/null
+        . "$_CM_PROJECT_CONFIG_FILE"
+      done
+    fi
   fi
 
   # Customize any variable
@@ -126,6 +143,11 @@ _cm_config()
   CM_CRAFT_GENERAL_CONFIG_PATH="$CM_APP_PATH/craft/config/general.php"
   CM_PHP_INI_PATH="$CM_SCRIPTS_PATH/override/usr/local/etc/php/php.ini"
   CM_CRAFT_ZIP="$CM_CACHE/$CM_CRAFT_ZIPNAME"
+  CM_DOCKER_CRAFT_DEFAULT_VOLUMES=$(cat <<SETVAR
+    - "./$CM_APP_DIR:/var/www"
+    - "./$CM_SCRIPTS_DIR:/scripts"
+SETVAR
+)
 
   # Run all [plugin]__config functions from plugins
   cm_trigger "config"
@@ -155,7 +177,7 @@ cm_usage()
   echo "Options:"
   echo " -h, --help"
   echo " -v, --version"
-  echo " -P, --port            HTTP port to expose on host"
+  echo " -P, --port=<HTTP-PORT>    HTTP port to expose on host"
   echo
   echo " -F, --force-all       Force redownload Craft CMS, regenerate and overwrite configurations and recreate containers"
   echo " -D, --force-download  Force to download latest Craft CMS from site"
@@ -455,31 +477,39 @@ _cm_generate_docker_compose_config()
   cm_can_generate "$CM_DOCKER_COMPOSE_PATH"
   if [ "$CM_GENERATE_FILE" != "" ]; then
     if [ "$CM_CRAFT_HTTP_PORT" != "" ]; then
-      COMPOSE_PORTS="  ports:"$'\n'"    - \"$CM_CRAFT_HTTP_PORT:80\""
+      _CM_DOCKER_CRAFT_PORTS=$(cat <<SETVAR
+  ports:        
+    - $CM_CRAFT_HTTP_PORT:80
+SETVAR
+)
     fi
     cat > "$CM_GENERATE_FILE" <<- EOF
 craft:
   image: "$CM_DOCKER_PHP_IMAGE"
   links:
     - "mysql:mysql"
+$CM_DOCKER_CRAFT_CUSTOM_LINKS
   volumes:
-    - "./$CM_APP_DIR:/var/www"
-    - "./$CM_SCRIPTS_DIR:/scripts"
-$CM_DOCKER_CRAFT_VOLUMES
+$CM_DOCKER_CRAFT_DEFAULT_VOLUMES
+$CM_DOCKER_CRAFT_CUSTOM_VOLUMES
   environment:
-$CM_DOCKER_CRAFT_ENV
-$COMPOSE_PORTS
+$CM_DOCKER_CRAFT_DEFAULT_ENV
+${CM_DOCKER_CRAFT_ENVS[*]}
+$_CM_DOCKER_CRAFT_PORTS
+$CM_DOCKER_CRAFT_CUSTOM
 mysql:
   image: "$CM_DOCKER_MYSQL_IMAGE"
   volumes_from:
     - "mysql_data"
   environment:
 $CM_DOCKER_MYSQL_ENV
+$CM_DOCKER_MYSQL_CUSTOM
 
 mysql_data:
   image: "$CM_DOCKER_DATA_IMAGE"
   volumes:
-    - "$CM_DOCKER_MYSQL_DATA_VOLUME"
+$CM_DOCKER_MYSQL_DATA_VOLUMES
+$CM_DOCKER_MYSQL_DATA_CUSTOM
 EOF
   fi
 }
@@ -582,7 +612,8 @@ cm_containers_status()
 
 cm_install()
 {
-  touch "$CM_PROJECT_PATH/.craftman"
+  mkdir -p "$CM_PROJECT_CRAFTMAN_PATH"
+  touch "$CM_PROJECT_CRAFTMAN_CONFIG"
   cm_log "Installing Craft..."
   cm_download
   _cm_extract_craft
@@ -662,7 +693,7 @@ cm_installer_run_all()
 cm_installer_run()
 {
   FILE="$CM_INSTALLER_PATH/$1"
-  if [ -f "$FILE.ok" ]; then
+  if [ -f "$FILE.ok" ] && [ "$CM_FORCE_RECREATE" == "0" ] ; then
     cm_log "Skipping install script $1"
   else
     cm_log "Running install script $1"
@@ -716,7 +747,11 @@ cm_admin()
 
 cm_craft_container()
 {
-  cm_docker_compose ps | grep craft | cut -f 1 -d ' '
+  if [ "$CM_CUSTOM_CONTAINER_ID" != "" ]; then
+    echo "$CM_CUSTOM_CONTAINER_ID"
+  else
+    cm_docker_compose ps | grep craft | cut -f 1 -d ' '
+  fi
 }
 
 cm_craft_ip()
@@ -768,7 +803,7 @@ cm_find_closest()
       search_dir="$(readlink -f $search_dir/..)"
   done
   set -e
-  [ -f "$search_dir/$filename" ] && echo "$search_dir" || echo ""
+  [ "$search_dir" != "$CRAFTMAN_DIR" ] && echo "$search_dir" || echo ""
 }
 
 cm_load_config()
@@ -789,6 +824,26 @@ cm_get_config_path()
   echo "$CM_CUSTOM_CONFIG_PATH/$1.conf"
 }
 
+cm_load_project_config()
+{
+  if [ -f "$CM_PROJECT_CUSTOM_CONFIG_PATH/$1.conf" ]; then
+    cm_debug "+  Loading $CM_PROJECT_CUSTOM_CONFIG_PATH/$1.conf"
+    . "$CM_PROJECT_CUSTOM_CONFIG_PATH/$1.conf"
+  fi
+}
+
+cm_remove_project_config()
+{
+  cm_debug "Removing $CM_PROJECT_CUSTOM_CONFIG_PATH/$1.conf"
+  rm -f "$CM_PROJECT_CUSTOM_CONFIG_PATH/$1.conf"
+}
+
+cm_get_project_config_path()
+{
+  mkdir -p "$CM_PROJECT_CUSTOM_CONFIG_PATH"
+  echo "$CM_PROJECT_CUSTOM_CONFIG_PATH/$1.conf"
+}
+
 cm_gitignore_add()
 {
   _cm_gitignore_file=".gitignore"
@@ -801,10 +856,44 @@ cm_gitignore_add()
   grep -q "$1" "$_cm_gitignore_file" || (echo "$1" >> "$_cm_gitignore_file")
 }
 
+_cm_save_custom_options() # beta
+{
+  _cm_save_docker_envs
+  _cm_save_docker_ports
+}
+
+_cm_save_docker_ports() # beta
+{
+  if [ "$CM_CRAFT_HTTP_PORT" != "" ]; then
+    cm_remove_project_config "docker-ports"
+    echo "CM_CRAFT_HTTP_PORT=$CM_CRAFT_HTTP_PORT" >> $(cm_get_project_config_path "docker-ports")
+  fi
+}
+
+_cm_save_docker_envs() # beta
+{
+  if [ "${#CM_DOCKER_CRAFT_ENVS[@]}" != "0" ]; then
+    cm_remove_project_config "docker-envs"
+    echo "CM_DOCKER_CRAFT_ENVS=\$(cat <<SETVAR"$'\n'"${CM_DOCKER_CRAFT_ENVS[*]}"$'\n'"SETVAR"$'\n'")" >> $(cm_get_project_config_path "docker-envs")
+  fi
+}
+
+_cm_clear_docker_envs() # beta
+{
+  CM_DOCKER_CRAFT_ENVS=()
+  cm_remove_project_config "docker-envs"
+}
+
+_cm_clear_docker_ports() # beta
+{
+  CM_CRAFT_HTTP_PORT=()
+  cm_remove_project_config "docker-ports"
+}
+
 # *******
 #  HOOKS
 # *******
-#  Override hooks at $CM_PROJECT_PATH/.craftman shellscript
+#  Override hooks at $CM_PROJECT_PATH/.craftman/config shellscript
 
 # Hook for change variables/configurations
 cm_config_hook()
@@ -829,6 +918,7 @@ _cm_initialize
 while [ "$1" != "" ]; do
   PARAM="$(echo "$1" | awk -F= '{print $1}')"
   VALUE="$(echo "$1" | awk -F= '{print $2}')"
+  NEXT_VALUE="$(echo "$1" | awk -F= '{print $3}')"
   PLUGIN_NAME="$(echo "$1" | awk -F: '{print $1}')"
   PLUGIN_COMMAND="$(echo "$1" | awk -F: '{print $2}')"
   case $PARAM in
@@ -857,16 +947,28 @@ while [ "$1" != "" ]; do
     -P | --port)
       CM_CRAFT_HTTP_PORT="$VALUE"
       ;;
+    --env) # beta
+      CM_DOCKER_CRAFT_ENVS=("    - $VALUE=$NEXT_VALUE")
+      ;;
+    --clear-envs) # beta
+      _cm_clear_docker_envs
+      ;;
+    --clear-ports) # beta
+      _cm_clear_docker_ports
+      ;;
     install)
       COMMAND="cm_install"
+      _cm_save_custom_options
       break
       ;;
     reconfigure)
       COMMAND="cm_reconfigure"
+      _cm_save_custom_options
       break
       ;;
     regenerate)
       COMMAND="cm_regenerate"
+      _cm_save_custom_options
       break
       ;;
     start)
