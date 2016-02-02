@@ -173,7 +173,7 @@ cm_usage()
   echo " $CM ip                    Show Craft CMS docker container IP address"
   echo " $CM run                   Open bash or run a command on Craft docker container"
   echo " $CM regenerate            Regenerate all configuration files"
-  echo " $CM reconfigure           Run all $CM_SCRIPTS_DIR/install.* files"
+  echo " $CM reconfigure           Run all $CM_SCRIPTS_DIR/install/* files"
   echo " $CM copy                  Copy $CM_SCRIPTS_DIR/override/**/* to craft container root /"
   echo " $CM remove                Remove all containers"
   echo " $CM --upgrade             Upgrade Craftman"
@@ -397,7 +397,7 @@ usermod -G "\$CM_GROUP" www-data
 
 echo "===> +  Configuring site permissions"
 chown -R \$CM_USER:\$CM_GROUP /var/www
-echo "===> +    Permissions /var/www: $CM_www_PERMISSIONS"
+echo "===> +    Set $CM_www_PERMISSIONS permissions to /var/www"
 chmod -R $CM_www_PERMISSIONS /var/www
 
 # Download and install libraries
