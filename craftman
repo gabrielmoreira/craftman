@@ -24,6 +24,10 @@ _cm_initialize()
   fi
   CM_PROJECT_CONFIG=".craftman"
   CM_PROJECT_PATH=$(cm_find_closest "$CM_PROJECT_CONFIG")
+  if [ "$CM_PROJECT_PATH" = "$(dirname "$CRAFTMAN_DIR")" ]; then
+    CM_PROJECT_PATH="$(pwd)"
+  fi
+  cm_debug "Project path: $CM_PROJECT_PATH"
   CM_CACHE="$CRAFTMAN_DIR/cache"
   CM_CONFIG_PATH="$CRAFTMAN_DIR/config"
   CM_CUSTOM_CONFIG_PATH="$CRAFTMAN_DIR/config.d"
@@ -803,7 +807,7 @@ cm_find_closest()
       search_dir="$(readlink -f $search_dir/..)"
   done
   set -e
-  [ "$search_dir" != "$CRAFTMAN_DIR" ] && echo "$search_dir" || echo ""
+  echo "$search_dir" || echo ""
 }
 
 cm_load_config()
