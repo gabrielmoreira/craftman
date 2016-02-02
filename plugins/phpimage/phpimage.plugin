@@ -43,23 +43,29 @@ phpimage__build()
 {
   PHPIMAGE__IMAGE="${1:-phpimage}"
   PHPIMAGE__BASEIMAGE="${2:-$PHPIMAGE__DEFAULT_IMAGE}"
+
   cm_log "Building a new php base image [$PHPIMAGE__IMAGE] from [$PHPIMAGE__BASEIMAGE]"
 	phpimage__prepare
-  cm_log "+  Creating base container"
+
+  cm_log "+  Creating a new container for base image"
 	PHPIMAGE__DOCKER_CONTAINER=$(docker run -d \
     -v "$CM_APP_PATH:/var/www" \
     -v "$CM_SCRIPTS_PATH:/scripts" \
     "$PHPIMAGE__BASEIMAGE")
+  
   cm_log "+  Running all installation scripts"
-  docker exec "$PHPIMAGE__DOCKER_CONTAINER"  \
-    sh -c "(find /scripts/install/ -name '*.sh' | sort | xargs chmod +x)"
-  docker exec "$PHPIMAGE__DOCKER_CONTAINER"  \
-    sh -c "(find /scripts/install/ -name '*.sh' | sort | xargs sh -c)"
+  CM_CUSTOM_CONTAINER_ID="$PHPIMAGE__DOCKER_CONTAINER"
+  CM_FORCE_RECREATE="1"
+  cm_installer_run_all
+
   cm_log "+  Commiting image $PHPIMAGE__IMAGE"
 	docker commit "$PHPIMAGE__DOCKER_CONTAINER" "$PHPIMAGE__IMAGE"
+
   cm_log "+  Setting $PHPIMAGE__IMAGE as default php image"
   phpimage__set "$PHPIMAGE__IMAGE"
-  docker rm "$PHPIMAGE__DOCKER_CONTAINER"
+
+  cm_log "+  Cleaning image container"
+  docker rm -f "$PHPIMAGE__DOCKER_CONTAINER"
 }
 
 phpimage__set()
