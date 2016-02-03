@@ -208,6 +208,7 @@ You can try force `-F` to redownload craft, regenerate configurations e recreate
 ## TODO
 
 - [x] Build a local Docker base image with updated php and libraries for fast installations
+- [ ] Create user and group id on container if not exist
 - [ ] Rename craftman private variables to _CM
 - [ ] Rearrange functions in logical groups or files
 
