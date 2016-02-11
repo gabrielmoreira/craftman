@@ -212,6 +212,7 @@ You can try force `-F` to redownload craft, `-O` to regenerate configurations an
 - [ ] Rename craftman private variables to _CM
 - [ ] Rearrange functions in logical groups or files
 - [ ] Rename app/ to site/
+- [ ] Fix craft open browser on '0.0.0.0'
 
 ## Roadmap
 
