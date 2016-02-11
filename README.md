@@ -201,9 +201,9 @@ If you try to install craft and the installation fails, you might get an error w
 
     file not found
 
-You can try force `-F` to redownload craft, regenerate configurations e recreate containers, using:
+You can try force `-F` to redownload craft, `-O` to regenerate configurations and `-R` to recreate containers, using:
 
-    craftman -F -P=8080 install
+    craftman -F -O -R install
 
 ## TODO
 
