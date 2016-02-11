@@ -211,6 +211,7 @@ You can try force `-F` to redownload craft, regenerate configurations e recreate
 - [ ] Create user and group id on container if not exist
 - [ ] Rename craftman private variables to _CM
 - [ ] Rearrange functions in logical groups or files
+- [ ] Rename app/ to site/
 
 ## Roadmap
 
