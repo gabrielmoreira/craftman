@@ -75,7 +75,7 @@ SETVAR
         libmcrypt-dev \
         libpng12-dev \
         libmagickwand-dev \
-        vim curl git
+        vim curl git wget unzip
 SETVAR
 )
   CM_CUSTOM_INSTALL=""
@@ -590,7 +590,7 @@ cm_containers_start()
   cm_log "Starting Craft CMS containers"
   UP_ARGS=""
   [ "$CM_FORCE_RECREATE" = "1" ] && UP_ARGS="--force-recreate"
-
+  cm_craft_container
   cm_docker_compose up $UP_ARGS -d
   cm_containers_refresh
 }
@@ -754,7 +754,7 @@ cm_craft_container()
   if [ "$CM_CUSTOM_CONTAINER_ID" != "" ]; then
     echo "$CM_CUSTOM_CONTAINER_ID"
   else
-    cm_docker_compose ps | grep craft | cut -f 1 -d ' '
+    COLUMNS=1000 cm_docker_compose ps | grep craft | cut -f 1 -d ' '
   fi
 }
 
@@ -766,7 +766,7 @@ cm_craft_ip()
 
 cm_mysql_container()
 {
-  cm_docker_compose ps | grep mysqld | cut -f 1 -d ' '
+  COLUMNS=1000 cm_docker_compose ps | grep mysqld | cut -f 1 -d ' '
 }
 
 cm_craftman_upgrade()
