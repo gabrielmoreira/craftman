@@ -30,7 +30,7 @@ __heroku_create_procfile()
   cm_can_generate "$HEROKU__PROCFILE"
   if [ "$CM_GENERATE_FILE" != "" ]; then
     cat > "$CM_GENERATE_FILE" <<- EOF
-web: vendor/bin/heroku-php-apache2 -i scripts/override/usr/local/etc/php/php.ini app/html
+web: vendor/bin/heroku-php-apache2 -i scripts/override/usr/local/etc/php/php.ini $CM_APP_DIR/html
 EOF
   fi
 }

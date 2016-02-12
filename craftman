@@ -59,7 +59,7 @@ SETVAR
 )
   CM_CRAFT_DOWNLOAD_URL="https://craftcms.com/latest.zip?accept_license=yes"
   CM_CRAFT_ZIPNAME="craft-$(date "+%Y-%m").zip"
-  CM_APP_DIR="app"
+  CM_APP_DIR="site"
   CM_BACKUPS_DIR="backups"
   CM_SCRIPTS_DIR="scripts"
   CM_DOCKER_COMPOSE="docker-compose.yml"
