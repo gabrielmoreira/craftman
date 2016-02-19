@@ -125,7 +125,8 @@ SETVAR
 
   if [ -d "$CM_PROJECT_CUSTOM_CONFIG_PATH" ]; then
     cm_debug "Searching $CM_PROJECT_CUSTOM_CONFIG_PATH/*.conf"
-    _CM_CONFIG_COUNT=$(sh -c "ls 2>/dev/null ls -1f \"$CM_PROJECT_CUSTOM_CONFIG_PATH/\"*.conf | wc -l")
+    _CM_CONFIG_COUNT=$(sh -c "ls 2>/dev/null ls -1f \"$CM_PROJECT_CUSTOM_CONFIG_PATH/\"*.conf | wc -l | tr -d '[[:space:]]'")
+    cm_debug "Config file count $_CM_CONFIG_COUNT"
     if [ "$_CM_CONFIG_COUNT" != "0" ]; then
       for _CM_PROJECT_CONFIG_FILE in "$CM_PROJECT_CUSTOM_CONFIG_PATH/"*.conf
       do 
