@@ -799,7 +799,7 @@ cm_browser_open()
   URL="$1"
   cm_log "Opening $1 in your browser"
   [ -x "$BROWSER" ] && exec "$BROWSER" "$1" > /dev/null 2>&1
-  path=$(which xdg-open || which gnome-open) && exec "$path" "$1" > /dev/null 2>&1
+  path=$(which xdg-open || which gnome-open || which open) && exec "$path" "$1" > /dev/null 2>&1
   cm_abort "Can't find a browser"
 }
 
