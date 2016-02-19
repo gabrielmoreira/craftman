@@ -14,11 +14,20 @@ cm_version()
   fi
 }
 
+cm_get_canonical_path()
+{
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    perl -MCwd=abs_path -le 'print abs_path readlink(shift);' "$1"
+  else
+    readlink -f "$1"
+  fi
+}
+
 _cm_initialize()
 {
   # Base craftman configs
-  CM="$(basename "$(readlink -f "$0")")"
-  CM_ROOT="$(dirname "$(readlink -f "$0")")"
+  CM="$(basename $(cm_get_canonical_path $0))"
+  CM_ROOT="$(dirname $(cm_get_canonical_path $0))"
   if [ -z "$CRAFTMAN_DIR" ]; then
     CRAFTMAN_DIR="$HOME/.craftman"
   fi
@@ -35,7 +44,7 @@ _cm_initialize()
   CM_PLUGINS_DIR="$CRAFTMAN_DIR/plugins"
   CM_PLUGINS_CORE_DIR="$CM_ROOT/plugins"
   [ "$CM_PROJECT_PATH" = "" ] && CM_PROJECT_PATH="."
-  CM_PROJECT_PATH="$(readlink -f "$CM_PROJECT_PATH")"
+  CM_PROJECT_PATH="$(cm_get_canonical_path "$CM_PROJECT_PATH")"
   CM_PROJECT_DIR="$(basename "$CM_PROJECT_PATH")"
   CM_PROJECT_NAME="$(echo "$CM_PROJECT_DIR" | tr '[:upper:]' '[:lower:]')"
   CM_PROJECT_CRAFTMAN_PATH="$CM_PROJECT_PATH/$CM_PROJECT_CONFIG"
@@ -804,7 +813,7 @@ cm_find_closest()
       FIND=$(find "$search_dir" -maxdepth 1 -mindepth 1 -name "$filename")
       [ "$FIND" != "" ] && break
       # To ignore symlinks use "$(realsearch_dir -s $search_dir/..)"
-      search_dir="$(readlink -f $search_dir/..)"
+      search_dir="$(cm_get_canonical_path "$search_dir/..")"
   done
   set -e
   echo "$search_dir" || echo ""
