@@ -750,7 +750,13 @@ cm_open()
   URL="$(cm_docker_compose port craft 80)"
   if [ "$URL" = "" ]; then
     URL=$(cm_craft_ip)
+  elif [ -n $DOCKER_HOST ]; then
+    FORWARDED_PORT="$(echo $URL | cut -d':' -f2)"
+    REGEX="([0-9]{1,3}\.){3}[0-9]{1,3}"
+    [[ $DOCKER_HOST =~ $REGEX ]]
+    URL="${BASH_REMATCH}:${FORWARDED_PORT}"
   fi
+
   cm_browser_open "http://${URL}$1"
 }
 
