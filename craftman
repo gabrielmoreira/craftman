@@ -14,10 +14,32 @@ cm_version()
   fi
 }
 
+# `readlink -f` implementation from https://gist.github.com/esycat/5279354
+# because OSX's version of readlink differs from the Linux version
+cm_readlink()
+{
+  TARGET=$1
+
+  cd $(dirname "$TARGET")
+  TARGET=$(basename "$TARGET")
+
+  while [ -L "$TARGET" ]
+  do
+    TARGET=$(readlink "$TARGET")
+    cd $(dirname "$TARGET")
+    TARGET=$(basename "$TARGET")
+  done
+
+  DIR=`pwd -P`
+  RESULT="$DIR/$TARGET"
+
+  echo $RESULT
+}
+
 cm_get_canonical_path()
 {
   if [[ "$OSTYPE" == "darwin"* ]]; then
-    perl -MCwd=abs_path -le 'print abs_path readlink(shift);' "$1"
+    cm_readlink "$1"
   else
     readlink -f "$1"
   fi
