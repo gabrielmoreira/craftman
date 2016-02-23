@@ -48,8 +48,8 @@ cm_get_canonical_path()
 _cm_initialize()
 {
   # Base craftman configs
-  CM="$(basename $(cm_get_canonical_path $0))"
-  CM_ROOT="$(dirname $(cm_get_canonical_path $0))"
+  CM="$(basename $(cm_get_canonical_path "$0"))"
+  CM_ROOT="$(dirname $(cm_get_canonical_path "$0"))"
   if [ -z "$CRAFTMAN_DIR" ]; then
     CRAFTMAN_DIR="$HOME/.craftman"
   fi
