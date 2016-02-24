@@ -424,6 +424,8 @@ fi
 echo "===> +    User id: \$CM_USER"
 echo "===> +    Group id: \$CM_GROUP"
 
+getent group "\$CM_GROUP" || groupadd craftman -g "\$CM_GROUP"
+
 usermod -u "\$CM_USER" www-data
 usermod -G "\$CM_GROUP" www-data
 
