@@ -165,6 +165,11 @@ SETVAR
 
   # Run all [plugin]__init functions from plugins
   cm_trigger "init"
+  
+  if [ "$TRACE" != "" ]; then
+    (set -o posix ; set) | grep CM_
+  fi
+
 }
 
 _cm_config()
@@ -652,6 +657,7 @@ cm_install()
 {
   mkdir -p "$CM_PROJECT_CRAFTMAN_PATH"
   touch "$CM_PROJECT_CRAFTMAN_CONFIG"
+  cm_debug "Creating craftman project at $CM_PROJECT_CRAFTMAN_CONFIG"
   cm_log "Installing Craft..."
   cm_download
   _cm_extract_craft
