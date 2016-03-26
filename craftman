@@ -14,32 +14,51 @@ cm_version()
   fi
 }
 
-# `readlink -f` implementation from https://gist.github.com/esycat/5279354
-# because OSX's version of readlink differs from the Linux version
-cm_readlink()
-{
-  TARGET=$1
+_posix_realpath() {
+    _posix_canonicalize_path "$(_posix_resolve_symlinks "$1")"
+}
 
-  cd $(dirname "$TARGET")
-  TARGET=$(basename "$TARGET")
+_posix_resolve_symlinks() {
+    local dir_context path
+    path="$(readlink -- "$1")"
+    if [ $? -eq 0 ]; then
+        dir_context="$(dirname -- "$1")"
+        _posix_resolve_symlinks "$(_posix_prepend_path_if_relative "$dir_context" "$path")"
+    else
+        printf '%s\n' "$1"
+    fi
+}
 
-  while [ -L "$TARGET" ]
-  do
-    TARGET=$(readlink "$TARGET")
-    cd $(dirname "$TARGET")
-    TARGET=$(basename "$TARGET")
-  done
+_posix_prepend_path_if_relative() {
+    case "$2" in
+        /* ) printf '%s\n' "$2" ;;
+         * ) printf '%s\n' "$1/$2" ;;
+    esac
+}
 
-  DIR=`pwd -P`
-  RESULT="$DIR/$TARGET"
+_posix_canonicalize_path() {
+    if [ -d "$1" ]; then
+        _posix_canonicalize_dir_path "$1"
+    else
+        _posix_canonicalize_file_path "$1"
+    fi
+}
 
-  echo $RESULT
+_posix_canonicalize_dir_path() {
+    (cd "$1" 2>/dev/null && pwd -P)
+}
+
+_posix_canonicalize_file_path() {
+    local dir file
+    dir="$(dirname -- "$1")"
+    file="$(basename -- "$1")"
+    (cd "$dir" 2>/dev/null && printf '%s/%s\n' "$(pwd -P)" "$file")
 }
 
 cm_get_canonical_path()
 {
   if [[ "$OSTYPE" == "darwin"* ]]; then
-    cm_readlink "$1"
+    _posix_realpath "$1"
   else
     readlink -f "$1"
   fi
@@ -124,7 +143,7 @@ SETVAR
   mkdir -p "$CM_CACHE"
   mkdir -p "$CM_PLUGINS_DIR"
   mkdir -p "$CM_CUSTOM_CONFIG_PATH"
-  
+
   # Configure and interpolate variables
   _cm_config
 
@@ -151,7 +170,7 @@ SETVAR
     cm_debug "Config file count $_CM_CONFIG_COUNT"
     if [ "$_CM_CONFIG_COUNT" != "0" ]; then
       for _CM_PROJECT_CONFIG_FILE in "$CM_PROJECT_CUSTOM_CONFIG_PATH/"*.conf
-      do 
+      do
         cm_debug "Loading [$_CM_PROJECT_CONFIG_FILE]"
         # shellcheck source=/dev/null
         . "$_CM_PROJECT_CONFIG_FILE"
@@ -165,7 +184,7 @@ SETVAR
 
   # Run all [plugin]__init functions from plugins
   cm_trigger "init"
-  
+
   if [ "$TRACE" != "" ]; then
     (set -o posix ; set) | grep CM_
   fi
@@ -781,7 +800,7 @@ cm_open()
   if [ "$URL" = "" ]; then
     URL=$(cm_craft_ip)
   elif [ "$DOCKER_HOST" != "" ]; then
-    FORWARDED_PORT="$(echo $URL | cut -d':' -f2)"
+    FORWARDED_PORT="$(echo "$URL" | cut -d':' -f2)"
     REGEX="([0-9]{1,3}\.){3}[0-9]{1,3}"
     [[ $DOCKER_HOST =~ $REGEX ]]
     URL="${BASH_REMATCH}:${FORWARDED_PORT}"
@@ -925,7 +944,7 @@ _cm_save_docker_envs() # beta
 {
   if [ "${#CM_DOCKER_CRAFT_ENVS[@]}" != "0" ]; then
     cm_remove_project_config "docker-envs"
-    echo "CM_DOCKER_CRAFT_ENVS=\$(cat <<SETVAR"$'\n'"${CM_DOCKER_CRAFT_ENVS[*]}"$'\n'"SETVAR"$'\n'")" >> $(cm_get_project_config_path "docker-envs")
+    echo "CM_DOCKER_CRAFT_ENVS=\$(cat <<SETVAR"$'\n'"${CM_DOCKER_CRAFT_ENVS[*]}"$'\n'"SETVAR"$'\n'")" >> "$(cm_get_project_config_path "docker-envs")"
   fi
 }
 
