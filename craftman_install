@@ -32,7 +32,7 @@ install_craftman_from_git() {
     mkdir -p "$CRAFTMAN_DIR"
     command git clone "$(craftman_source git)" "$CRAFTMAN_DIR"
   fi
-  cd "$CRAFTMAN_DIR" && command git checkout --quiet $(craftman_latest_version)
+  cd "$CRAFTMAN_DIR" && command git checkout --quiet "$(craftman_latest_version)"
   if [ ! -z "$(cd "$CRAFTMAN_DIR" && git show-ref refs/heads/master)" ]; then
     if git branch --quiet 2>/dev/null; then
       cd "$CRAFTMAN_DIR" && command git branch --quiet -D master >/dev/null 2>&1
@@ -50,18 +50,16 @@ craftman_detect_profile() {
     return
   fi
 
-  local DETECTED_PROFILE
   DETECTED_PROFILE=''
-  local SHELLTYPE
-  SHELLTYPE="$(basename /$SHELL)"
+  SHELLTYPE="$(basename "/$SHELL")"
 
-  if [ $SHELLTYPE = "bash" ]; then
+  if [ "$SHELLTYPE" = "bash" ]; then
     if [ -f "$HOME/.bashrc" ]; then
       DETECTED_PROFILE="$HOME/.bashrc"
     elif [ -f "$HOME/.bash_profile" ]; then
       DETECTED_PROFILE="$HOME/.bash_profile"
     fi
-  elif [ $SHELLTYPE = "zsh" ]; then
+  elif [ "$SHELLTYPE" = "zsh" ]; then
     DETECTED_PROFILE="$HOME/.zshrc"
   fi
 
@@ -99,8 +97,7 @@ craftman_do_install() {
 
   echo
 
-  local CRAFTMAN_PROFILE
-  CRAFTMAN_PROFILE=$(craftman_detect_profile)
+  CRAFTMAN_PROFILE="$(craftman_detect_profile)"
 
   SOURCE_STR="\nalias craftman=\"$CRAFTMAN_DIR/craftman\""
 
