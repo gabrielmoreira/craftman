@@ -107,8 +107,8 @@ SETVAR
     - CRAFT_DEVMODE=true
 SETVAR
 )
-  CM_CRAFT_DOWNLOAD_URL="https://craftcms.com/latest.zip?accept_license=yes"
-  CM_CRAFT_ZIPNAME="craft-$(date "+%Y-%m").zip"
+  CM_CRAFT_DOWNLOAD_URL="https://craftcms.com/latest.tar.gz?accept_license=yes"
+  CM_CRAFT_FILENAME="craft-$(date "+%Y-%m").tar.gz"
   CM_APP_DIR="site"
   CM_BACKUPS_DIR="backups"
   CM_SCRIPTS_DIR="scripts"
@@ -202,7 +202,7 @@ _cm_config()
   CM_CRAFT_DB_CONFIG_PATH="$CM_APP_PATH/craft/config/db.php"
   CM_CRAFT_GENERAL_CONFIG_PATH="$CM_APP_PATH/craft/config/general.php"
   CM_PHP_INI_PATH="$CM_SCRIPTS_PATH/override/usr/local/etc/php/php.ini"
-  CM_CRAFT_ZIP="$CM_CACHE/$CM_CRAFT_ZIPNAME"
+  CM_CRAFT_TAR="$CM_CACHE/$CM_CRAFT_FILENAME"
   CM_DOCKER_CRAFT_DEFAULT_VOLUMES=$(cat <<SETVAR
     - "./$CM_APP_DIR:/var/www"
     - "./$CM_SCRIPTS_DIR:/scripts"
@@ -368,25 +368,25 @@ _cm_load_plugins_from_directory()
 cm_download()
 {
   cm_log "Preparing to download Craft CMS"
-  if [ -f "$CM_CRAFT_ZIP" ] && [ "$CM_FORCE_DOWNLOAD" == "0" ]; then
+  if [ -f "$CM_CRAFT_TAR" ] && [ "$CM_FORCE_DOWNLOAD" == "0" ]; then
     cm_log "+  Using Craft CMS from local cache"
   else
     cm_log "+  Downloading Craft CMS from $CM_CRAFT_DOWNLOAD_URL"
-    curl -o "$CM_CRAFT_ZIP.partial" --retry 3 -0 -L -C - "$CM_CRAFT_DOWNLOAD_URL"
-    rm -Rf "$CM_CRAFT_ZIP"
-    mv -f "$CM_CRAFT_ZIP.partial" "$CM_CRAFT_ZIP"
+    curl -o "$CM_CRAFT_TAR.partial" --retry 3 -0 -L -C - "$CM_CRAFT_DOWNLOAD_URL"
+    rm -Rf "$CM_CRAFT_TAR"
+    mv -f "$CM_CRAFT_TAR.partial" "$CM_CRAFT_TAR"
   fi
 }
 
 _cm_extract_craft()
 {
-  cm_log "Extracting Craft CMS zip"
+  cm_log "Extracting Craft CMS tar.gz"
   mkdir -p "$CM_APP_PATH"
   if [ "$(ls -A "$CM_APP_PATH")" ] && [ "$CM_FORCE_OVERWRITE" == "0" ]; then
     cm_abort "+  $CM_APP_PATH is not empty"
   else
-    cm_log "+  Unzipping craft.zip to $CM_APP_PATH"
-    unzip -qo "$CM_CRAFT_ZIP" -d "$CM_APP_PATH"
+    cm_log "+  Extracting craft.tar.gz to $CM_APP_PATH"
+    tar -C "$CM_APP_PATH" -xzf "$CM_CRAFT_TAR"
     rm -f "$CM_CRAFT_DB_CONFIG_PATH"
     rm -f "$CM_CRAFT_GENERAL_CONFIG_PATH"
     if [ -d "$CM_APP_PATH/html" ]; then
@@ -774,12 +774,14 @@ cm_installer_ensure_run()
 cm_craft_run()
 {
   CMD="${*:-bash}"
+  cm_trace "cm_craft_run: [docker exec -i -t \"$(cm_craft_container)\" sh -i -c \"$CMD\"]"
   docker exec -i -t "$(cm_craft_container)" sh -i -c "$CMD"
 }
 
 cm_craft_exec()
 {
   CMD="${*:-echo}"
+  cm_trace "cm_craft_exec: [docker exec -t \"$(cm_craft_container)\" sh -c \"$CMD\"]"
   docker exec -t "$(cm_craft_container)" sh -c "$CMD"
 }
 
@@ -819,7 +821,7 @@ cm_craft_container()
   if [ "$CM_CUSTOM_CONTAINER_ID" != "" ]; then
     echo "$CM_CUSTOM_CONTAINER_ID"
   else
-    COLUMNS=1000 cm_docker_compose ps | grep craft | cut -f 1 -d ' '
+    COLUMNS=1000 cm_docker_compose ps craft | grep craft | cut -f 1 -d ' '
   fi
 }
 
@@ -831,7 +833,7 @@ cm_craft_ip()
 
 cm_mysql_container()
 {
-  COLUMNS=1000 cm_docker_compose ps | grep mysqld | cut -f 1 -d ' '
+  COLUMNS=1000 cm_docker_compose ps mysql | grep mysqld | cut -f 1 -d ' '
 }
 
 cm_craftman_upgrade()
