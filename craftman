@@ -450,8 +450,8 @@ echo "===> +    Group id: \$CM_GROUP"
 
 getent group "\$CM_GROUP" || groupadd craftman -g "\$CM_GROUP"
 
-usermod -u "\$CM_USER" www-data
-usermod -G "\$CM_GROUP" www-data
+usermod -u "\$CM_USER" www-data || echo "User \$CM_USER already exists"
+usermod -G "\$CM_GROUP" www-data || echo "Group \$CM_GROUP already exists"
 
 echo "===> +  Configuring site permissions"
 chown -R \$CM_USER:\$CM_GROUP /var/www
