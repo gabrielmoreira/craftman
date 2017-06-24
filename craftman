@@ -92,7 +92,7 @@ _cm_initialize()
   CM_PROJECT_CRAFTMAN_CONFIG="$CM_PROJECT_CRAFTMAN_PATH/config"
   CM_PROJECT_CUSTOM_CONFIG_PATH="$CM_PROJECT_CRAFTMAN_PATH/config.d"
   # Default craftman configurations
-  CM_DOCKER_PHP_IMAGE="php:5-apache"
+  CM_DOCKER_PHP_IMAGE="php:7-apache"
   CM_DOCKER_MYSQL_IMAGE="mariadb:10.1"
   CM_DOCKER_DATA_IMAGE="debian:jessie"
   CM_DOCKER_MYSQL_ENV=$(cat <<SETVAR
