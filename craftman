@@ -92,7 +92,7 @@ _cm_initialize()
   CM_PROJECT_CRAFTMAN_CONFIG="$CM_PROJECT_CRAFTMAN_PATH/config"
   CM_PROJECT_CUSTOM_CONFIG_PATH="$CM_PROJECT_CRAFTMAN_PATH/config.d"
   # Default craftman configurations
-  CM_DOCKER_PHP_IMAGE="php:7-apache"
+  CM_DOCKER_PHP_IMAGE="php:7.0-apache"
   CM_DOCKER_MYSQL_IMAGE="mariadb:10.1"
   CM_DOCKER_DATA_IMAGE="debian:jessie"
   CM_DOCKER_MYSQL_ENV=$(cat <<SETVAR
@@ -115,9 +115,9 @@ SETVAR
   CM_DOCKER_COMPOSE="docker-compose.yml"
   CM_INSTALLER_DIR="install"
   CM_INSTALL_DEPENDENCIES="010_dependencies.sh"
-  CM_PECL_INSTALL="imagick"
+  CM_PECL_INSTALL="imagick redis"
   CM_PHP_EXT_INSTALL="iconv mcrypt gd mbstring pdo pdo_mysql zip"
-  CM_PHP_EXT_ENABLE="imagick"
+  CM_PHP_EXT_ENABLE="imagick redis"
   CM_APACHE_MODS_ENABLE="rewrite setenvif deflate headers filter"
   CM_APT_INSTALL=$(cat <<SETVAR
         libfreetype6-dev \
