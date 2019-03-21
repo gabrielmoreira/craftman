@@ -123,7 +123,7 @@ SETVAR
         libfreetype6-dev \
         libjpeg62-turbo-dev \
         libmcrypt-dev \
-        libpng12-dev \
+        libpng-dev \
         libmagickwand-dev \
         vim curl git wget unzip
 SETVAR
