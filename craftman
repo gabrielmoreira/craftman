@@ -107,7 +107,7 @@ SETVAR
     - CRAFT_DEVMODE=true
 SETVAR
 )
-  CM_CRAFT_DOWNLOAD_URL="https://craftcms.com/latest.tar.gz?accept_license=yes"
+  CM_CRAFT_DOWNLOAD_URL="https://craftcms.com/latest-v2.tar.gz?accept_license=yes"
   CM_CRAFT_FILENAME="craft-$(date "+%Y-%m").tar.gz"
   CM_APP_DIR="site"
   CM_BACKUPS_DIR="backups"
